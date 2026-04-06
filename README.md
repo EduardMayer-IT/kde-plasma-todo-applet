@@ -6,14 +6,14 @@ A native, lightweight to-do list widget for KDE Plasma 6. Manage your daily task
 
 ## Features
 
-- ✅ **Add, edit, and delete tasks** – Manage your to-do list efficiently
-- 🎯 **Priority levels** – Mark tasks as low, medium, or high priority with visual indicators
-- 📅 **Due dates** – Set and track task deadlines
-- 💾 **Persistent storage** – Tasks are saved automatically in Plasma configuration
-- 🎨 **Plasma-integrated design** – Respects your system theme (light/dark)
-- 📱 **Responsive layout** – Works on desktop, horizontal, and vertical panels
-- ⚡ **Fast and lightweight** – Pure QML, no external dependencies
-- 🔄 **Nextcloud integration** – (Framework ready, opt-in configuration)
+-  **Add, edit, and delete tasks** – Manage your to-do list efficiently
+-  **Priority levels** – Mark tasks as low, medium, or high priority with visual indicators
+-  **Due dates** – Set and track task deadlines
+-  **Persistent storage** – Tasks are saved automatically in Plasma configuration
+-  **Plasma-integrated design** – Respects your system theme (light/dark)
+-  **Responsive layout** – Works on desktop, horizontal, and vertical panels
+-  **Fast and lightweight** – Pure QML, no external dependencies
+-  **Nextcloud integration** – (Framework ready, opt-in configuration)
 
 ## Installation
 
@@ -168,14 +168,14 @@ Ein natives, schlankes Aufgabenlisten-Widget für KDE Plasma 6. Verwalte deine t
 
 ## Funktionen
 
-- ✅ **Aufgaben hinzufügen, bearbeiten und löschen** – Effiziente Aufgabenverwaltung
-- 🎯 **Prioritätsstufen** – Kennzeichne Aufgaben mit niedrig, mittel oder hoch (visuelle Indikatoren)
-- 📅 **Fälligkeitsdaten** – Setze und verfolge Aufgabenfristen
-- 💾 **Persistente Speicherung** – Aufgaben werden automatisch in der Plasma-Konfiguration gespeichert
-- 🎨 **Plasma-integriert** – Respektiert dein System-Theme (hell/dunkel)
-- 📱 **Responsive Layouts** – Funktioniert auf Desktop-, horizontalen und vertikalen Panels
-- ⚡ **Schnell und leicht** – Reines QML, keine externen Abhängigkeiten
-- 🔄 **Nextcloud-Integration** – (Framework vorbereitet, optionale Konfiguration)
+-  **Aufgaben hinzufügen, bearbeiten und löschen** – Effiziente Aufgabenverwaltung
+-  **Prioritätsstufen** – Kennzeichne Aufgaben mit niedrig, mittel oder hoch (visuelle Indikatoren)
+-  **Fälligkeitsdaten** – Setze und verfolge Aufgabenfristen
+-  **Persistente Speicherung** – Aufgaben werden automatisch in der Plasma-Konfiguration gespeichert
+-  **Plasma-integriert** – Respektiert dein System-Theme (hell/dunkel)
+-  **Responsive Layouts** – Funktioniert auf Desktop-, horizontalen und vertikalen Panels
+-  **Schnell und leicht** – Reines QML, keine externen Abhängigkeiten
+-  **Nextcloud-Integration** – (Framework vorbereitet, optionale Konfiguration)
 
 ## Installation
 
