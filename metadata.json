@@ -1,0 +1,28 @@
+{
+
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-MainScript": "ui/main.qml",
+    "KPlugin": {
+        "Id": "com.meinprojekt.aufgaben",
+        "Name": "Meine Aufgabenliste",
+        "Description": "Ein natives To-Do-List-Applet für KDE Plasma 6.",
+        "Version": "1.1.0",
+        "License": "MIT",
+        "Website": "",
+        "Icon": "view-list-symbolic",
+        "Category": "Utilities",
+        "FormFactors": [
+            "desktop",
+            "horizontal",
+            "vertical"
+        ],
+        "Authors": [
+            {
+                "Name": "Dein Name",
+                "Email": "deine.email@example.com"
+            }
+        ],
+        "EnabledByDefault": true
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

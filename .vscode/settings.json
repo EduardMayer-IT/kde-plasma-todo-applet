@@ -1,0 +1,7 @@
+{
+    "qt-qml.qmlls.additionalImportPaths": [
+        "/usr/lib/x86_64-linux-gnu/qt6/qml",
+        "${workspaceFolder}/.plasma-stubs"
+    ],
+    "qt-qml.qmlls.useNoCMakeCalls": true
+}
