@@ -18,6 +18,7 @@ QtControls.ItemDelegate {
     required property bool erledigt
 
     signal erledigtGewechselt(bool istErledigt)
+    signal prioritaetGewechselt(int neuePrioritaet)
     signal loeschenAngefragt()
 
     readonly property real zeilenHoehe: Kirigami.Units.gridUnit * 1.35
@@ -62,12 +63,31 @@ QtControls.ItemDelegate {
         }
 
         Rectangle {
+            id: prioritaetsBalken
             Layout.preferredWidth: aufgabenDelegate.prioritaetsSpaltenBreite
             Layout.maximumWidth: aufgabenDelegate.prioritaetsSpaltenBreite
             Layout.alignment: Qt.AlignVCenter
             Layout.fillHeight: true
             radius: 3
             color: aufgabenDelegate.prioritaetFarbe(aufgabenDelegate.prioritaet)
+
+            MouseArea {
+                id: prioritaetKlickflaeche
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    const naechstePrioritaet = (aufgabenDelegate.prioritaet + 1) % 3;
+                    aufgabenDelegate.prioritaetGewechselt(naechstePrioritaet);
+                }
+            }
+
+            QtControls.ToolTip {
+                // qmllint disable unqualified
+                text: i18n("Klicken zum Wechseln der Prioritaet")
+                // qmllint enable unqualified
+                delay: 500
+                visible: prioritaetKlickflaeche.containsMouse
+            }
         }
 
         ColumnLayout {

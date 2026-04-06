@@ -10,6 +10,8 @@ PlasmoidItem {
     id: root
     // qmllint disable unqualified
     readonly property string gespeicherteAufgaben: Plasmoid.configuration.tasksJson || "[]"
+    readonly property string listenTitel: (Plasmoid.configuration.listTitle || "").trim() || i18n("Aufgabenliste")
+    property int neueAufgabePrioritaet: 0
     // qmllint enable unqualified
 
     implicitWidth: Kirigami.Units.gridUnit * 18
@@ -18,8 +20,33 @@ PlasmoidItem {
     function aufgabeAusEingabeHinzufuegen() {
         const text = neueAufgabeEingabe.text.trim();
         if (text.length === 0) return;
-        aufgabenModell.aufgabeHinzufuegen(text, 0, "");
+        aufgabenModell.aufgabeHinzufuegen(text, neueAufgabePrioritaet, "");
         neueAufgabeEingabe.text = "";
+        neueAufgabePrioritaet = 0;
+    }
+
+    function prioritaetFarbe(prioritaet) {
+        switch (prioritaet) {
+        case 2:
+            return "#d64545";
+        case 1:
+            return "#d9b000";
+        default:
+            return "#3da35a";
+        }
+    }
+
+    function prioritaetText(prioritaet) {
+        // qmllint disable unqualified
+        switch (prioritaet) {
+        case 2:
+            return i18n("Hoch");
+        case 1:
+            return i18n("Mittel");
+        default:
+            return i18n("Niedrig");
+        }
+        // qmllint enable unqualified
     }
 
     ColumnLayout {
@@ -29,10 +56,12 @@ PlasmoidItem {
 
         Kirigami.Heading {
             level: 3
-            // qmllint disable unqualified
-            text: i18n("Aufgabenliste")
-            // qmllint enable unqualified
+            text: root.listenTitel
             Layout.fillWidth: true
+            wrapMode: Text.NoWrap
+            elide: Text.ElideRight
+            maximumLineCount: 1
+            clip: true
         }
 
         Rectangle {
@@ -59,6 +88,10 @@ PlasmoidItem {
                         aufgabenModell.erledigtSetzen(index, istErledigt);
                     }
 
+                    onPrioritaetGewechselt: function(neuePrioritaet) {
+                        aufgabenModell.prioritaetSetzen(index, neuePrioritaet);
+                    }
+
                     onLoeschenAngefragt: {
                         aufgabenModell.aufgabeLoeschen(index);
                     }
@@ -72,6 +105,33 @@ PlasmoidItem {
             Layout.fillWidth: true
             Layout.preferredHeight: Kirigami.Units.gridUnit * 1.9
             spacing: Kirigami.Units.smallSpacing
+
+            Rectangle {
+                id: prioritaetFeld
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 1.5
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 1.5
+                radius: 3
+                color: root.prioritaetFarbe(root.neueAufgabePrioritaet)
+                border.width: 1
+                border.color: Qt.rgba(1, 1, 1, 0.2)
+
+                MouseArea {
+                    id: prioritaetKlickflaeche
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        root.neueAufgabePrioritaet = (root.neueAufgabePrioritaet + 1) % 3;
+                    }
+                }
+
+                QtControls.ToolTip {
+                    // qmllint disable unqualified
+                    text: i18n("Prioritaet: %1", root.prioritaetText(root.neueAufgabePrioritaet))
+                    // qmllint enable unqualified
+                    delay: 300
+                    visible: prioritaetKlickflaeche.containsMouse
+                }
+            }
 
             QtControls.TextField {
                 id: neueAufgabeEingabe
@@ -87,10 +147,11 @@ PlasmoidItem {
 
             QtControls.Button {
                 // qmllint disable unqualified
-                text: i18n("Hinzufuegen")
+                text: i18n("+")
                 // qmllint enable unqualified
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 1.5
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 5.6
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 1.5
+                font.bold: true
                 onClicked: root.aufgabeAusEingabeHinzufuegen()
             }
         }

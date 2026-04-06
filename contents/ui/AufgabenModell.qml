@@ -42,6 +42,15 @@ ListModel {
         persistiere();
     }
 
+    function prioritaetSetzen(index, prioritaet) {
+        if (!istGueltigerIndex(index) || !AufgabenLogik.istGueltigePrioritaet(prioritaet)) {
+            return;
+        }
+
+        setProperty(index, "prioritaet", prioritaet);
+        persistiere();
+    }
+
     function aktualisiereFaelligkeit(index, faelligkeit) {
         if (!istGueltigerIndex(index)) {
             return;
