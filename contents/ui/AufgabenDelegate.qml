@@ -20,13 +20,13 @@ QtControls.ItemDelegate {
     signal erledigtGewechselt(bool istErledigt)
     signal loeschenAngefragt()
 
-    readonly property real zeilenHoehe: Kirigami.Units.gridUnit * 1.9
-    readonly property real loeschenSpaltenBreite: Kirigami.Units.gridUnit * 5.4
-    readonly property real checkboxSpaltenBreite: Kirigami.Units.gridUnit * 1.6
-    readonly property real prioritaetsSpaltenBreite: Kirigami.Units.gridUnit * 0.38
+    readonly property real zeilenHoehe: Kirigami.Units.gridUnit * 1.5
+    readonly property real loeschenSpaltenBreite: Kirigami.Units.gridUnit * 4.8
+    readonly property real checkboxSpaltenBreite: Kirigami.Units.gridUnit * 1.3
+    readonly property real prioritaetsSpaltenBreite: Kirigami.Units.gridUnit * 0.33
 
     width: ListView.view ? ListView.view.width : implicitWidth
-    padding: Kirigami.Units.smallSpacing * 0.6
+    padding: Kirigami.Units.smallSpacing * 0.35
     implicitHeight: Math.max(zeilenHoehe, contentItem.implicitHeight + (padding * 2))
     height: implicitHeight
 
@@ -40,7 +40,7 @@ QtControls.ItemDelegate {
     }
 
     contentItem: RowLayout {
-        spacing: Kirigami.Units.smallSpacing * 0.8
+        spacing: Kirigami.Units.smallSpacing * 0.3
         width: aufgabenDelegate.availableWidth
         height: implicitHeight
 
@@ -104,7 +104,7 @@ QtControls.ItemDelegate {
             text: i18n("Löschen")
             // qmllint enable unqualified
             implicitHeight: Kirigami.Units.gridUnit * 1.8
-            Layout.preferredHeight: Kirigami.Units.gridUnit * 1.55
+            Layout.preferredHeight: Kirigami.Units.gridUnit * 1.4
             Layout.preferredWidth: aufgabenDelegate.loeschenSpaltenBreite
             Layout.maximumWidth: aufgabenDelegate.loeschenSpaltenBreite
             Layout.alignment: Qt.AlignVCenter
