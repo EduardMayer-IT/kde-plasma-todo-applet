@@ -12,8 +12,8 @@ PlasmoidItem {
     readonly property string gespeicherteAufgaben: Plasmoid.configuration.tasksJson || "[]"
     // qmllint enable unqualified
 
-    implicitWidth: Kirigami.Units.gridUnit * 20
-    implicitHeight: Kirigami.Units.gridUnit * 16
+    implicitWidth: Kirigami.Units.gridUnit * 18
+    implicitHeight: Kirigami.Units.gridUnit * 14
 
     function aufgabeAusEingabeHinzufuegen() {
         const text = neueAufgabeEingabe.text.trim();
@@ -24,11 +24,11 @@ PlasmoidItem {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Kirigami.Units.largeSpacing
-        spacing: Kirigami.Units.largeSpacing
+        anchors.margins: Kirigami.Units.smallSpacing * 1.5
+        spacing: Kirigami.Units.smallSpacing
 
         Kirigami.Heading {
-            level: 2
+            level: 3
             // qmllint disable unqualified
             text: i18n("Aufgabenliste")
             // qmllint enable unqualified
@@ -39,7 +39,7 @@ PlasmoidItem {
             color: Kirigami.Theme.backgroundColor
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.minimumHeight: Kirigami.Units.gridUnit * 10
+            Layout.minimumHeight: Kirigami.Units.gridUnit * 8.5
             radius: Kirigami.Units.smallSpacing
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.12)
@@ -47,9 +47,9 @@ PlasmoidItem {
             ListView {
                 id: aufgabenListe
                 anchors.fill: parent
-                anchors.margins: Kirigami.Units.smallSpacing
+                anchors.margins: Kirigami.Units.smallSpacing * 0.7
                 clip: true
-                spacing: Kirigami.Units.smallSpacing
+                spacing: Kirigami.Units.smallSpacing * 0.6
                 model: aufgabenModell
 
                 delegate: AufgabenDelegate {
@@ -70,13 +70,13 @@ PlasmoidItem {
 
         RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: Kirigami.Units.gridUnit * 2.2
+            Layout.preferredHeight: Kirigami.Units.gridUnit * 1.9
             spacing: Kirigami.Units.smallSpacing
 
             QtControls.TextField {
                 id: neueAufgabeEingabe
                 Layout.fillWidth: true
-                Layout.preferredHeight: Kirigami.Units.gridUnit * 1.75
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 1.5
                 // qmllint disable unqualified
                 placeholderText: i18n("Neue Aufgabe eingeben...")
                 // qmllint enable unqualified
@@ -89,8 +89,8 @@ PlasmoidItem {
                 // qmllint disable unqualified
                 text: i18n("Hinzufuegen")
                 // qmllint enable unqualified
-                Layout.preferredHeight: Kirigami.Units.gridUnit * 1.75
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 6.3
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 1.5
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 5.6
                 onClicked: root.aufgabeAusEingabeHinzufuegen()
             }
         }

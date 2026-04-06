@@ -20,18 +20,18 @@ QtControls.ItemDelegate {
     signal erledigtGewechselt(bool istErledigt)
     signal loeschenAngefragt()
 
-    readonly property real zeilenHoehe: Kirigami.Units.gridUnit * 1.5
+    readonly property real zeilenHoehe: Kirigami.Units.gridUnit * 1.35
     readonly property real loeschenSpaltenBreite: Kirigami.Units.gridUnit * 4.8
-    readonly property real checkboxSpaltenBreite: Kirigami.Units.gridUnit * 1.3
+    readonly property real checkboxSpaltenBreite: Kirigami.Units.gridUnit * 1.15
     readonly property real prioritaetsSpaltenBreite: Kirigami.Units.gridUnit * 0.33
 
     width: ListView.view ? ListView.view.width : implicitWidth
-    padding: Kirigami.Units.smallSpacing * 0.35
+    padding: Kirigami.Units.smallSpacing * 0.22
     implicitHeight: Math.max(zeilenHoehe, contentItem.implicitHeight + (padding * 2))
     height: implicitHeight
 
     background: Rectangle {
-        radius: 8
+        radius: 6
         color: aufgabenDelegate.erledigt
             ? Qt.rgba(0.2, 0.65, 0.3, 0.16)
             : (aufgabenDelegate.hovered ? Kirigami.Theme.hoverColor : Kirigami.Theme.backgroundColor)
@@ -40,7 +40,7 @@ QtControls.ItemDelegate {
     }
 
     contentItem: RowLayout {
-        spacing: Kirigami.Units.smallSpacing * 0.3
+        spacing: Kirigami.Units.smallSpacing * 0.2
         width: aufgabenDelegate.availableWidth
         height: implicitHeight
 
@@ -100,15 +100,37 @@ QtControls.ItemDelegate {
 
         QtControls.Button {
             id: loeschenButton
-            // qmllint disable unqualified
-            text: i18n("Löschen")
-            // qmllint enable unqualified
-            implicitHeight: Kirigami.Units.gridUnit * 1.8
-            Layout.preferredHeight: Kirigami.Units.gridUnit * 1.4
-            Layout.preferredWidth: aufgabenDelegate.loeschenSpaltenBreite
-            Layout.maximumWidth: aufgabenDelegate.loeschenSpaltenBreite
+            text: "✕"
+            font.pixelSize: Kirigami.Units.gridUnit * 1.0
+            font.bold: true
+            Layout.preferredHeight: Kirigami.Units.gridUnit * 1.15
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 1.15
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 1.15
             Layout.alignment: Qt.AlignVCenter
+            
+            background: Rectangle {
+                radius: 3
+                color: loeschenButton.hovered ? "#ff5555" : "#cc3333"
+                border.width: 0
+            }
+            
+            contentItem: Text {
+                text: loeschenButton.text
+                color: "white"
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                font: loeschenButton.font
+            }
+            
             onClicked: aufgabenDelegate.loeschenAngefragt()
+            
+            QtControls.ToolTip {
+                // qmllint disable unqualified
+                text: i18n("Aufgabe löschen")
+                // qmllint enable unqualified
+                delay: 500
+                visible: loeschenButton.hovered
+            }
         }
     }
 
