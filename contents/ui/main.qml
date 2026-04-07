@@ -92,6 +92,10 @@ PlasmoidItem {
                         aufgabenModell.prioritaetSetzen(index, neuePrioritaet);
                     }
 
+                    onBeschreibungGewechselt: function(neueBeschreibung) {
+                        aufgabenModell.beschreibungSetzen(index, neueBeschreibung);
+                    }
+
                     onLoeschenAngefragt: {
                         aufgabenModell.aufgabeLoeschen(index);
                     }

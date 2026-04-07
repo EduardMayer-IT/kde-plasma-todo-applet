@@ -16,9 +16,12 @@ QtControls.ItemDelegate {
     required property int prioritaet
     required property string faelligkeit
     required property bool erledigt
+    property bool bearbeitungsModus: false
+    property string bearbeitungsText: ""
 
     signal erledigtGewechselt(bool istErledigt)
     signal prioritaetGewechselt(int neuePrioritaet)
+    signal beschreibungGewechselt(string neueBeschreibung)
     signal loeschenAngefragt()
 
     readonly property real zeilenHoehe: Kirigami.Units.gridUnit * 0.9
@@ -30,6 +33,24 @@ QtControls.ItemDelegate {
     padding: Kirigami.Units.smallSpacing * 0.04
     implicitHeight: Math.max(zeilenHoehe, contentItem.implicitHeight + (padding * 2))
     height: implicitHeight
+
+    function bearbeitungStarten() {
+        bearbeitungsText = beschreibung;
+        bearbeitungsModus = true;
+    }
+
+    function bearbeitungSpeichern() {
+        const bereinigt = bearbeitungsText.trim();
+        if (bereinigt.length > 0 && bereinigt !== beschreibung) {
+            beschreibungGewechselt(bereinigt);
+        }
+        bearbeitungsModus = false;
+    }
+
+    function bearbeitungAbbrechen() {
+        bearbeitungsText = beschreibung;
+        bearbeitungsModus = false;
+    }
 
     background: Rectangle {
         radius: 4
@@ -97,7 +118,9 @@ QtControls.ItemDelegate {
             spacing: 0
 
             QtControls.Label {
+                id: beschreibungsLabel
                 Layout.fillWidth: true
+                visible: !aufgabenDelegate.bearbeitungsModus
                 text: aufgabenDelegate.beschreibung
                 font.pixelSize: Kirigami.Units.gridUnit * 0.66
                 font.bold: true
@@ -106,6 +129,37 @@ QtControls.ItemDelegate {
                 wrapMode: Text.NoWrap
                 opacity: aufgabenDelegate.erledigt ? 0.65 : 1.0
                 color: Kirigami.Theme.textColor
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.IBeamCursor
+                    onClicked: {
+                        aufgabenDelegate.bearbeitungStarten();
+                        bearbeitungsEingabe.forceActiveFocus();
+                        bearbeitungsEingabe.selectAll();
+                    }
+                }
+            }
+
+            QtControls.TextField {
+                id: bearbeitungsEingabe
+                Layout.fillWidth: true
+                visible: aufgabenDelegate.bearbeitungsModus
+                text: aufgabenDelegate.bearbeitungsText
+                font.pixelSize: Kirigami.Units.gridUnit * 0.66
+                selectByMouse: true
+                onTextChanged: aufgabenDelegate.bearbeitungsText = text
+                onAccepted: aufgabenDelegate.bearbeitungSpeichern()
+                onActiveFocusChanged: {
+                    if (!activeFocus && aufgabenDelegate.bearbeitungsModus) {
+                        aufgabenDelegate.bearbeitungSpeichern();
+                    }
+                }
+
+                Keys.onEscapePressed: function(event) {
+                    event.accepted = true;
+                    aufgabenDelegate.bearbeitungAbbrechen();
+                }
             }
 
             QtControls.Label {

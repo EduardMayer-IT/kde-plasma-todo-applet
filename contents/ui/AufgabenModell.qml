@@ -51,6 +51,24 @@ ListModel {
         persistiere();
     }
 
+    function beschreibungSetzen(index, beschreibung) {
+        if (!istGueltigerIndex(index)) {
+            return;
+        }
+
+        const bereinigt = (beschreibung || "").trim();
+        if (!bereinigt) {
+            return;
+        }
+
+        if (get(index).beschreibung === bereinigt) {
+            return;
+        }
+
+        setProperty(index, "beschreibung", bereinigt);
+        persistiere();
+    }
+
     function aktualisiereFaelligkeit(index, faelligkeit) {
         if (!istGueltigerIndex(index)) {
             return;
