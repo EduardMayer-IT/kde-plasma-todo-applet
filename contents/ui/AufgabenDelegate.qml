@@ -147,6 +147,17 @@ QtControls.ItemDelegate {
         return listView ? listView.model : null;
     }
 
+    function setzeDragStatus(aktiv, quellIndex, zielIndex, unterModus) {
+        if (!aufgabenDelegate.dragController) {
+            return;
+        }
+
+        aufgabenDelegate.dragController.dragAktiv = aktiv;
+        aufgabenDelegate.dragController.dragQuellIndex = quellIndex;
+        aufgabenDelegate.dragController.dragZielIndex = zielIndex;
+        aufgabenDelegate.dragController.dragUnterModus = unterModus;
+    }
+
     function dragStatusAktiv() {
         return !!(aufgabenDelegate.dragController && aufgabenDelegate.dragController.dragAktiv);
     }
@@ -196,19 +207,12 @@ QtControls.ItemDelegate {
         const modeOK = aufgabenDelegate.unterzeilenModusAktiv;
         const targetOK = aufgabenDelegate.unterzeilenZielIndex >= 0;
         const notSameOK = aufgabenDelegate.unterzeilenZielIndex !== quellIndex;
-        const listView = aufgabenDelegate.ListView.view;
-        const dragController = aufgabenDelegate.dragController;
 
         if (modeOK && targetOK && notSameOK) {
             aufgabenDelegate.verschiebeAlsUnterzeile(quellIndex, aufgabenDelegate.unterzeilenZielIndex);
         }
 
-        if (dragController) {
-            dragController.dragAktiv = false;
-            dragController.dragQuellIndex = -1;
-            dragController.dragZielIndex = -1;
-            dragController.dragUnterModus = false;
-        }
+        aufgabenDelegate.setzeDragStatus(false, -1, -1, false);
 
         aufgabenDelegate.letzterZielIndex = -1;
         aufgabenDelegate.unterzeilenModusAktiv = false;
@@ -392,12 +396,7 @@ QtControls.ItemDelegate {
                     const posInList = dragMausflaeche.mapToItem(listView, mouse.x, mouse.y);
                     aufgabenDelegate.dragStartXInList = posInList.x;
                     aufgabenDelegate.dragStartYInList = posInList.y;
-                    if (aufgabenDelegate.dragController) {
-                        aufgabenDelegate.dragController.dragAktiv = true;
-                        aufgabenDelegate.dragController.dragQuellIndex = aufgabenDelegate.index;
-                        aufgabenDelegate.dragController.dragZielIndex = aufgabenDelegate.index;
-                        aufgabenDelegate.dragController.dragUnterModus = false;
-                    }
+                    aufgabenDelegate.setzeDragStatus(true, aufgabenDelegate.index, aufgabenDelegate.index, false);
                 }
 
                 onReleased: {
@@ -428,9 +427,12 @@ QtControls.ItemDelegate {
                             && horizontalAbs > (vertikalAbs * 1.35)) {
                         aufgabenDelegate.unterzeilenModusAktiv = true;
                     }
-                    if (aufgabenDelegate.dragController) {
-                        aufgabenDelegate.dragController.dragUnterModus = aufgabenDelegate.unterzeilenModusAktiv;
-                    }
+                    aufgabenDelegate.setzeDragStatus(
+                        true,
+                        aufgabenDelegate.dragStatusQuellIndex(),
+                        aufgabenDelegate.dragStatusZielIndex(),
+                        aufgabenDelegate.unterzeilenModusAktiv
+                    );
 
                     let targetIdx = listView.indexAt(listView.width * 0.5, yInContent);
                     if (targetIdx < 0) {
@@ -440,9 +442,12 @@ QtControls.ItemDelegate {
 
                     // Always keep target index current (needed for correct release handling)
                     aufgabenDelegate.unterzeilenZielIndex = targetIdx;
-                    if (aufgabenDelegate.dragController) {
-                        aufgabenDelegate.dragController.dragZielIndex = targetIdx;
-                    }
+                    aufgabenDelegate.setzeDragStatus(
+                        true,
+                        aufgabenDelegate.dragStatusQuellIndex(),
+                        targetIdx,
+                        aufgabenDelegate.unterzeilenModusAktiv
+                    );
 
                     // In subentry mode: only track target, never reorder
                     if (aufgabenDelegate.unterzeilenModusAktiv) {

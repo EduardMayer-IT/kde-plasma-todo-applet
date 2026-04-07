@@ -198,13 +198,13 @@ ListModel {
         liste.splice(unterIndex, 1);
         setzeUntereintraege(index, liste);
 
-        const neuerEintrag = {
-            beschreibung: beschreibung,
-            prioritaet: AufgabenLogik.istGueltigePrioritaet(unter.prioritaet) ? unter.prioritaet : 0,
-            faelligkeit: "",
-            untereintraege: [],
-            erledigt: !!unter.erledigt
-        };
+        const neuerEintrag = erzeugeListeneintrag(
+            beschreibung,
+            unter.prioritaet,
+            "",
+            [],
+            unter.erledigt
+        );
 
         insert(index + 1, neuerEintrag);
         persistiere();
@@ -287,13 +287,13 @@ ListModel {
         }
 
         const eintrag = get(index);
-        set(index, {
-            beschreibung: eintrag.beschreibung,
-            prioritaet: AufgabenLogik.istGueltigePrioritaet(eintrag.prioritaet) ? eintrag.prioritaet : 0,
-            faelligkeit: typeof eintrag.faelligkeit === "string" ? eintrag.faelligkeit : "",
-            untereintraege: liste,
-            erledigt: !!eintrag.erledigt
-        });
+        set(index, erzeugeListeneintrag(
+            eintrag.beschreibung,
+            eintrag.prioritaet,
+            eintrag.faelligkeit,
+            liste,
+            eintrag.erledigt
+        ));
     }
 
     function istGueltigerUntereintragIndex(index, unterIndex) {
@@ -327,6 +327,16 @@ ListModel {
         }
 
         return [];
+    }
+
+    function erzeugeListeneintrag(beschreibung, prioritaet, faelligkeit, untereintraege, erledigt) {
+        return {
+            beschreibung: (beschreibung || "").trim(),
+            prioritaet: AufgabenLogik.istGueltigePrioritaet(prioritaet) ? prioritaet : 0,
+            faelligkeit: typeof faelligkeit === "string" ? faelligkeit : "",
+            untereintraege: Array.isArray(untereintraege) ? untereintraege : normalisiereListe(untereintraege),
+            erledigt: !!erledigt
+        };
     }
 
     Component.onCompleted: ausJsonLaden(tasksJson)
