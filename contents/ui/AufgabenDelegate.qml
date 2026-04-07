@@ -67,6 +67,34 @@ QtControls.ItemDelegate {
         bearbeitungsModus = false;
     }
 
+    function textAusDrop(drop) {
+        let text = "";
+
+        if (drop && drop.text !== undefined && drop.text !== null) {
+            text = String(drop.text);
+        }
+
+        if ((!text || text.trim().length === 0) && drop && typeof drop.getDataAsString === "function") {
+            const mimeTypen = [
+                "text/plain",
+                "text/plain;charset=utf-8",
+                "STRING",
+                "TEXT",
+                "text/uri-list"
+            ];
+
+            for (let i = 0; i < mimeTypen.length; ++i) {
+                const daten = drop.getDataAsString(mimeTypen[i]);
+                if (daten && daten.trim().length > 0) {
+                    text = daten;
+                    break;
+                }
+            }
+        }
+
+        return (text || "").trim();
+    }
+
     opacity: dragMausflaeche.pressed ? 0.72 : 1.0
 
     background: Rectangle {
@@ -111,7 +139,7 @@ QtControls.ItemDelegate {
             }
 
             onDropped: function(drop) {
-                const text = (drop.text || "").trim();
+                const text = aufgabenDelegate.textAusDrop(drop);
                 aufgabenDelegate.dropAktiv = false;
                 if (!text) return;
                 aufgabenDelegate.untertextGedroppt(text);
