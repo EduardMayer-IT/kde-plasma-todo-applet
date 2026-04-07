@@ -99,6 +99,30 @@ ListModel {
         persistiere();
     }
 
+    function eintragAlsUnterzeileVerschieben(quellIndex, zielIndex) {
+        if (!istGueltigerIndex(quellIndex) || !istGueltigerIndex(zielIndex) || quellIndex === zielIndex) {
+            return;
+        }
+
+        const quelle = get(quellIndex);
+        const ziel = get(zielIndex);
+
+        const quellBeschreibung = (quelle.beschreibung || "").trim();
+        const quellNotiz = (quelle.notiz || "").trim();
+        const quellBlock = quellNotiz.length > 0 ? (quellBeschreibung + "\n" + quellNotiz) : quellBeschreibung;
+
+        if (!quellBlock) {
+            return;
+        }
+
+        const zielNotiz = (ziel.notiz || "").trim();
+        const neueNotiz = zielNotiz.length > 0 ? (zielNotiz + "\n" + quellBlock) : quellBlock;
+
+        setProperty(zielIndex, "notiz", neueNotiz);
+        remove(quellIndex, 1);
+        persistiere();
+    }
+
     function verschieben(von, nach, persistieren) {
         if (!istGueltigerIndex(von) || !istGueltigerIndex(nach) || von === nach) {
             return;

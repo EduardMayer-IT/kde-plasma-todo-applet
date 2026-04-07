@@ -22,12 +22,16 @@ QtControls.ItemDelegate {
     property string bearbeitungsNotizText: ""
     property int letzterZielIndex: -1
     property bool dropAktiv: false
+    property bool unterzeilenModusAktiv: false
+    property int dragStartXInList: 0
+    property int unterzeilenZielIndex: -1
 
     signal erledigtGewechselt(bool istErledigt)
     signal prioritaetGewechselt(int neuePrioritaet)
     signal beschreibungGewechselt(string neueBeschreibung)
     signal notizGewechselt(string neueNotiz)
     signal untertextGedroppt(string untertext)
+    signal alsUnterzeileVerschiebenAngefragt(int quellIndex, int zielIndex)
     signal loeschenAngefragt()
     signal verschoben(int vonIndex, int nachIndex)
     signal verschiebenBeendet()
@@ -99,9 +103,11 @@ QtControls.ItemDelegate {
 
     background: Rectangle {
         radius: 4
-        color: aufgabenDelegate.hovered
+        color: aufgabenDelegate.unterzeilenModusAktiv
+            ? Qt.rgba(1, 1, 1, 0.08)
+            : (aufgabenDelegate.hovered
             ? Kirigami.Theme.hoverColor
-            : Kirigami.Theme.backgroundColor
+            : Kirigami.Theme.backgroundColor)
         border.width: 1
         border.color: aufgabenDelegate.dropAktiv
             ? Kirigami.Theme.highlightColor
@@ -183,10 +189,26 @@ QtControls.ItemDelegate {
 
                 onPressed: {
                     aufgabenDelegate.letzterZielIndex = -1;
+                    const listView = aufgabenDelegate.ListView.view;
+                    if (listView) {
+                        const pos = dragMausflaeche.mapToItem(listView, mouseX, mouseY);
+                        aufgabenDelegate.dragStartXInList = pos.x;
+                    }
+                    aufgabenDelegate.unterzeilenModusAktiv = false;
+                    aufgabenDelegate.unterzeilenZielIndex = -1;
                 }
 
                 onReleased: {
+                    if (aufgabenDelegate.unterzeilenModusAktiv && aufgabenDelegate.unterzeilenZielIndex >= 0
+                            && aufgabenDelegate.unterzeilenZielIndex !== aufgabenDelegate.index) {
+                        aufgabenDelegate.alsUnterzeileVerschiebenAngefragt(
+                            aufgabenDelegate.index,
+                            aufgabenDelegate.unterzeilenZielIndex
+                        );
+                    }
                     aufgabenDelegate.letzterZielIndex = -1;
+                    aufgabenDelegate.unterzeilenModusAktiv = false;
+                    aufgabenDelegate.unterzeilenZielIndex = -1;
                     aufgabenDelegate.verschiebenBeendet();
                 }
 
@@ -195,6 +217,7 @@ QtControls.ItemDelegate {
                     const listView = aufgabenDelegate.ListView.view;
                     if (!listView) return;
                     const posInList = dragMausflaeche.mapToItem(listView, mouse.x, mouse.y);
+                    const horizontalerVersatz = posInList.x - aufgabenDelegate.dragStartXInList;
                     const yInContent = listView.contentY + posInList.y;
                     let targetIdx = listView.indexAt(listView.width * 0.5, yInContent);
 
@@ -203,6 +226,13 @@ QtControls.ItemDelegate {
                     }
 
                     targetIdx = Math.max(0, Math.min(listView.count - 1, targetIdx));
+
+                    aufgabenDelegate.unterzeilenModusAktiv = horizontalerVersatz > (Kirigami.Units.gridUnit * 0.9);
+                    aufgabenDelegate.unterzeilenZielIndex = targetIdx;
+
+                    if (aufgabenDelegate.unterzeilenModusAktiv) {
+                        return;
+                    }
 
                     if (targetIdx === aufgabenDelegate.index || targetIdx === aufgabenDelegate.letzterZielIndex) {
                         return;

@@ -112,6 +112,10 @@ PlasmoidItem {
                         aufgabenModell.notizAnhaengen(index, untertext);
                     }
 
+                    onAlsUnterzeileVerschiebenAngefragt: function(quellIndex, zielIndex) {
+                        aufgabenModell.eintragAlsUnterzeileVerschieben(quellIndex, zielIndex);
+                    }
+
                     onVerschoben: function(vonIndex, nachIndex) {
                         aufgabenModell.verschieben(vonIndex, nachIndex, false);
                     }
