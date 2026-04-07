@@ -83,6 +83,22 @@ ListModel {
         persistiere();
     }
 
+    function notizAnhaengen(index, text) {
+        if (!istGueltigerIndex(index)) {
+            return;
+        }
+
+        const bereinigt = (text || "").trim();
+        if (!bereinigt) {
+            return;
+        }
+
+        const aktuelleNotiz = (get(index).notiz || "").trim();
+        const neueNotiz = aktuelleNotiz.length > 0 ? (aktuelleNotiz + "\n" + bereinigt) : bereinigt;
+        setProperty(index, "notiz", neueNotiz);
+        persistiere();
+    }
+
     function verschieben(von, nach, persistieren) {
         if (!istGueltigerIndex(von) || !istGueltigerIndex(nach) || von === nach) {
             return;

@@ -26,6 +26,7 @@ QtControls.ItemDelegate {
     signal prioritaetGewechselt(int neuePrioritaet)
     signal beschreibungGewechselt(string neueBeschreibung)
     signal notizGewechselt(string neueNotiz)
+    signal untertextGedroppt(string untertext)
     signal loeschenAngefragt()
     signal verschoben(int vonIndex, int nachIndex)
     signal verschiebenBeendet()
@@ -230,6 +231,20 @@ QtControls.ItemDelegate {
                         bearbeitungsEingabe.selectAll();
                     }
                 }
+
+                DropArea {
+                    anchors.fill: parent
+
+                    onDropped: function(drop) {
+                        const text = (drop.text || "").trim();
+                        if (!text) {
+                            return;
+                        }
+
+                        aufgabenDelegate.untertextGedroppt(text);
+                        drop.acceptProposedAction();
+                    }
+                }
             }
 
             QtControls.TextArea {
@@ -268,6 +283,7 @@ QtControls.ItemDelegate {
 
             QtControls.Label {
                 Layout.fillWidth: true
+                Layout.leftMargin: Kirigami.Units.smallSpacing * 1.15
                 visible: !aufgabenDelegate.bearbeitungsModus && aufgabenDelegate.notiz.length > 0
                 text: aufgabenDelegate.notiz
                 font.pixelSize: Kirigami.Units.gridUnit * 0.56
@@ -279,6 +295,7 @@ QtControls.ItemDelegate {
             QtControls.TextArea {
                 id: notizBearbeitungsEingabe
                 Layout.fillWidth: true
+                Layout.leftMargin: Kirigami.Units.smallSpacing * 1.15
                 visible: aufgabenDelegate.bearbeitungsModus
                 text: aufgabenDelegate.bearbeitungsNotizText
                 font.pixelSize: Kirigami.Units.gridUnit * 0.56

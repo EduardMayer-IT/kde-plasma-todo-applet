@@ -110,6 +110,10 @@ PlasmoidItem {
                         aufgabenModell.notizSetzen(index, neueNotiz);
                     }
 
+                    onUntertextGedroppt: function(untertext) {
+                        aufgabenModell.notizAnhaengen(index, untertext);
+                    }
+
                     onVerschoben: function(vonIndex, nachIndex) {
                         aufgabenModell.verschieben(vonIndex, nachIndex, false);
                     }
