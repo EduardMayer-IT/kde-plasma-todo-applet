@@ -46,7 +46,7 @@ QtControls.ItemDelegate {
     readonly property real loeschenSpaltenBreite: Kirigami.Units.gridUnit * 4.8
     readonly property real checkboxSpaltenBreite: Kirigami.Units.gridUnit * 0.82
     readonly property real prioritaetsSpaltenBreite: Kirigami.Units.gridUnit * 0.33
-    readonly property real unterzeilenHorizontalSchwelle: 25
+    readonly property real unterzeilenHorizontalSchwelle: 8
 
     width: ListView.view ? ListView.view.width : implicitWidth
     padding: Kirigami.Units.smallSpacing * 0.04
@@ -232,6 +232,8 @@ QtControls.ItemDelegate {
 
             MouseArea {
                 id: dragMausflaeche
+                propagateComposedEvents: true
+                preventStealing: true
                 anchors.fill: parent
                 cursorShape: dragMausflaeche.pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
 
