@@ -26,7 +26,7 @@ QtControls.ItemDelegate {
     property int letzterZielIndex: -1
     property bool dropAktiv: false
     property bool unterzeilenModusAktiv: false
-    property int dragStartXInList: 0
+    property real dragStartScreenX: 0
     property int unterzeilenZielIndex: -1
 
     signal erledigtGewechselt(bool istErledigt)
@@ -45,7 +45,7 @@ QtControls.ItemDelegate {
     readonly property real loeschenSpaltenBreite: Kirigami.Units.gridUnit * 4.8
     readonly property real checkboxSpaltenBreite: Kirigami.Units.gridUnit * 0.82
     readonly property real prioritaetsSpaltenBreite: Kirigami.Units.gridUnit * 0.33
-    readonly property real unterzeilenHorizontalSchwelle: Kirigami.Units.gridUnit * 0.16
+    readonly property real unterzeilenHorizontalSchwelle: 25
 
     width: ListView.view ? ListView.view.width : implicitWidth
     padding: Kirigami.Units.smallSpacing * 0.04
@@ -158,6 +158,28 @@ QtControls.ItemDelegate {
             )
         }
 
+        Rectangle {
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: Kirigami.Units.smallSpacing * 0.45
+            visible: aufgabenDelegate.unterzeilenModusAktiv
+            radius: 3
+            color: Kirigami.Theme.highlightColor
+            border.width: 1
+            border.color: Qt.rgba(0, 0, 0, 0.22)
+            width: modusText.implicitWidth + Kirigami.Units.smallSpacing * 1.2
+            height: modusText.implicitHeight + Kirigami.Units.smallSpacing * 0.8
+
+            Text {
+                id: modusText
+                anchors.centerIn: parent
+                text: "UNTERZEILE"
+                color: Kirigami.Theme.highlightedTextColor
+                font.pixelSize: Kirigami.Units.gridUnit * 0.42
+                font.bold: true
+            }
+        }
+
         DropArea {
             id: dropZone
             anchors.fill: parent
@@ -215,12 +237,8 @@ QtControls.ItemDelegate {
 
                 onPressed: {
                     aufgabenDelegate.letzterZielIndex = -1;
-                    const listView = aufgabenDelegate.ListView.view;
-                    if (listView) {
-                        const pos = dragMausflaeche.mapToItem(listView, mouseX, mouseY);
-                        aufgabenDelegate.dragStartXInList = pos.x;
-                        console.log("Drag START at X=" + pos.x + " (threshold=" + aufgabenDelegate.unterzeilenHorizontalSchwelle + "px)");
-                    }
+                    const globalPos = dragMausflaeche.mapToGlobal(mouseX, mouseY);
+                    aufgabenDelegate.dragStartScreenX = globalPos.x;
                     aufgabenDelegate.unterzeilenModusAktiv = false;
                     aufgabenDelegate.unterzeilenZielIndex = -1;
                 }
@@ -245,23 +263,24 @@ QtControls.ItemDelegate {
                     if (!dragMausflaeche.pressed) return;
                     const listView = aufgabenDelegate.ListView.view;
                     if (!listView) return;
+
+                    const currentScreenX = dragMausflaeche.mapToGlobal(mouse.x, mouse.y).x;
+                    const horizontalerVersatz = currentScreenX - aufgabenDelegate.dragStartScreenX;
+
+                    // Sticky: once right-drag is detected, stay in subentry mode until release
+                    if (horizontalerVersatz > aufgabenDelegate.unterzeilenHorizontalSchwelle) {
+                        aufgabenDelegate.unterzeilenModusAktiv = true;
+                    }
+
                     const posInList = dragMausflaeche.mapToItem(listView, mouse.x, mouse.y);
-                    const horizontalerVersatz = posInList.x - aufgabenDelegate.dragStartXInList;
                     const yInContent = listView.contentY + posInList.y;
                     let targetIdx = listView.indexAt(listView.width * 0.5, yInContent);
 
                     if (targetIdx < 0) {
                         targetIdx = yInContent < 0 ? 0 : listView.count - 1;
                     }
-
                     targetIdx = Math.max(0, Math.min(listView.count - 1, targetIdx));
 
-                    // DEBUG: Log first few position changes to see offset values
-                    if (horizontalerVersatz > -2 && horizontalerVersatz < 40) {
-                        console.log("Drag offset: " + horizontalerVersatz + "px, threshold: " + aufgabenDelegate.unterzeilenHorizontalSchwelle + "px, mode: " + (horizontalerVersatz > aufgabenDelegate.unterzeilenHorizontalSchwelle));
-                    }
-
-                    aufgabenDelegate.unterzeilenModusAktiv = horizontalerVersatz > aufgabenDelegate.unterzeilenHorizontalSchwelle;
                     aufgabenDelegate.unterzeilenZielIndex = targetIdx;
 
                     if (aufgabenDelegate.unterzeilenModusAktiv) {
