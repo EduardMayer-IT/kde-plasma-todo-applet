@@ -74,7 +74,21 @@ QtControls.ItemDelegate {
             ? Kirigami.Theme.hoverColor
             : Kirigami.Theme.backgroundColor
         border.width: 1
-        border.color: Qt.rgba(1, 1, 1, 0.12)
+        border.color: dropZone.containsDrag
+            ? Kirigami.Theme.highlightColor
+            : Qt.rgba(1, 1, 1, 0.12)
+
+        DropArea {
+            id: dropZone
+            anchors.fill: parent
+
+            onDropped: function(drop) {
+                const text = (drop.text || "").trim();
+                if (!text) return;
+                aufgabenDelegate.untertextGedroppt(text);
+                drop.acceptProposedAction();
+            }
+        }
     }
 
     contentItem: RowLayout {
@@ -232,19 +246,7 @@ QtControls.ItemDelegate {
                     }
                 }
 
-                DropArea {
-                    anchors.fill: parent
 
-                    onDropped: function(drop) {
-                        const text = (drop.text || "").trim();
-                        if (!text) {
-                            return;
-                        }
-
-                        aufgabenDelegate.untertextGedroppt(text);
-                        drop.acceptProposedAction();
-                    }
-                }
             }
 
             QtControls.TextArea {
@@ -281,21 +283,32 @@ QtControls.ItemDelegate {
                 }
             }
 
-            QtControls.Label {
+            RowLayout {
                 Layout.fillWidth: true
-                Layout.leftMargin: Kirigami.Units.smallSpacing * 1.15
                 visible: !aufgabenDelegate.bearbeitungsModus && aufgabenDelegate.notiz.length > 0
-                text: aufgabenDelegate.notiz
-                font.pixelSize: Kirigami.Units.gridUnit * 0.56
-                wrapMode: Text.Wrap
-                color: Kirigami.Theme.disabledTextColor
-                opacity: aufgabenDelegate.erledigt ? 0.6 : 1.0
+                spacing: Kirigami.Units.smallSpacing * 0.55
+
+                Rectangle {
+                    width: 2
+                    Layout.fillHeight: true
+                    radius: 1
+                    color: Qt.rgba(1, 1, 1, 0.22)
+                }
+
+                QtControls.Label {
+                    Layout.fillWidth: true
+                    text: aufgabenDelegate.notiz
+                    font.pixelSize: Kirigami.Units.gridUnit * 0.56
+                    wrapMode: Text.Wrap
+                    color: Kirigami.Theme.disabledTextColor
+                    opacity: aufgabenDelegate.erledigt ? 0.6 : 1.0
+                }
             }
 
             QtControls.TextArea {
                 id: notizBearbeitungsEingabe
                 Layout.fillWidth: true
-                Layout.leftMargin: Kirigami.Units.smallSpacing * 1.15
+                Layout.leftMargin: Kirigami.Units.smallSpacing * 2.2
                 visible: aufgabenDelegate.bearbeitungsModus
                 text: aufgabenDelegate.bearbeitungsNotizText
                 font.pixelSize: Kirigami.Units.gridUnit * 0.56
