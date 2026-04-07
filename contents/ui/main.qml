@@ -12,6 +12,10 @@ PlasmoidItem {
     readonly property string gespeicherteAufgaben: Plasmoid.configuration.tasksJson || "[]"
     readonly property string listenTitel: (Plasmoid.configuration.listTitle || "").trim() || i18n("Aufgabenliste")
     property int neueAufgabePrioritaet: 0
+    property bool dragAktiv: false
+    property int dragQuellIndex: -1
+    property int dragZielIndex: -1
+    property bool dragUnterModus: false
     // qmllint enable unqualified
 
     implicitWidth: Kirigami.Units.gridUnit * 15.5
@@ -91,6 +95,7 @@ PlasmoidItem {
 
                 delegate: AufgabenDelegate {
                     width: aufgabenListe.width
+                    dragController: root
 
                     onErledigtGewechselt: function(istErledigt) {
                         aufgabenModell.erledigtSetzen(index, istErledigt);

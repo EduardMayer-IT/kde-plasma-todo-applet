@@ -19,6 +19,7 @@ QtControls.ItemDelegate {
     required property int prioritaet
     required property string faelligkeit
     required property bool erledigt
+    property var dragController: null
     property bool bearbeitungsModus: false
     property string bearbeitungsText: ""
     property int bearbeiteterUntereintragIndex: -1
@@ -26,8 +27,8 @@ QtControls.ItemDelegate {
     property int letzterZielIndex: -1
     property bool dropAktiv: false
     property bool unterzeilenModusAktiv: false
-    property real dragStartScreenX: 0
-    property int dragStartIndex: -1
+    property real dragStartXInList: 0
+    property real dragStartYInList: 0
     property int unterzeilenZielIndex: -1
 
     signal erledigtGewechselt(bool istErledigt)
@@ -46,7 +47,10 @@ QtControls.ItemDelegate {
     readonly property real loeschenSpaltenBreite: Kirigami.Units.gridUnit * 4.8
     readonly property real checkboxSpaltenBreite: Kirigami.Units.gridUnit * 0.82
     readonly property real prioritaetsSpaltenBreite: Kirigami.Units.gridUnit * 0.33
-    readonly property real unterzeilenHorizontalSchwelle: 8
+    readonly property real unterzeilenHorizontalSchwelle: 18
+    readonly property bool istDragQuelleGlobal: dragStatusAktiv() && dragStatusQuellIndex() === index
+    readonly property bool istDragZielGlobal: dragStatusAktiv() && dragStatusZielIndex() === index
+    readonly property bool istDragUnterModusGlobal: dragStatusUnterModus()
 
     width: ListView.view ? ListView.view.width : implicitWidth
     padding: Kirigami.Units.smallSpacing * 0.04
@@ -124,6 +128,93 @@ QtControls.ItemDelegate {
         return (text || "").trim();
     }
 
+    function untereintraegeAnzahl() {
+        const wert = aufgabenDelegate.untereintraege;
+        if (!wert) {
+            return 0;
+        }
+        if (typeof wert.count === "number") {
+            return wert.count;
+        }
+        if (typeof wert.length === "number") {
+            return wert.length;
+        }
+        return 0;
+    }
+
+    function holeModell() {
+        const listView = aufgabenDelegate.ListView.view;
+        return listView ? listView.model : null;
+    }
+
+    function dragStatusAktiv() {
+        return !!(aufgabenDelegate.dragController && aufgabenDelegate.dragController.dragAktiv);
+    }
+
+    function dragStatusQuellIndex() {
+        return aufgabenDelegate.dragController ? aufgabenDelegate.dragController.dragQuellIndex : -1;
+    }
+
+    function dragStatusZielIndex() {
+        return aufgabenDelegate.dragController ? aufgabenDelegate.dragController.dragZielIndex : -1;
+    }
+
+    function dragStatusUnterModus() {
+        return !!(aufgabenDelegate.dragController && aufgabenDelegate.dragController.dragUnterModus);
+    }
+
+    function verschiebeEintrag(vonIndex, nachIndex) {
+        const modell = holeModell();
+        if (modell && typeof modell.verschieben === "function") {
+            modell.verschieben(vonIndex, nachIndex, false);
+        } else {
+            aufgabenDelegate.verschoben(vonIndex, nachIndex);
+        }
+        aufgabenDelegate.verschiebenBeendet();
+    }
+
+    function verschiebeAlsUnterzeile(quellIndex, zielIndex) {
+        const modell = holeModell();
+        if (modell && typeof modell.eintragAlsUnterzeileVerschieben === "function") {
+            modell.eintragAlsUnterzeileVerschieben(quellIndex, zielIndex);
+        } else {
+            aufgabenDelegate.alsUnterzeileVerschiebenAngefragt(quellIndex, zielIndex);
+        }
+        aufgabenDelegate.verschiebenBeendet();
+    }
+
+    function untereintragZuHaupteintrag(unterIndex) {
+        const modell = holeModell();
+        if (modell && typeof modell.untereintragZuHaupteintrag === "function") {
+            modell.untereintragZuHaupteintrag(aufgabenDelegate.index, unterIndex);
+            aufgabenDelegate.verschiebenBeendet();
+        }
+    }
+
+    function dragAbschliessen() {
+        const quellIndex = aufgabenDelegate.index;
+        const modeOK = aufgabenDelegate.unterzeilenModusAktiv;
+        const targetOK = aufgabenDelegate.unterzeilenZielIndex >= 0;
+        const notSameOK = aufgabenDelegate.unterzeilenZielIndex !== quellIndex;
+        const listView = aufgabenDelegate.ListView.view;
+        const dragController = aufgabenDelegate.dragController;
+
+        if (modeOK && targetOK && notSameOK) {
+            aufgabenDelegate.verschiebeAlsUnterzeile(quellIndex, aufgabenDelegate.unterzeilenZielIndex);
+        }
+
+        if (dragController) {
+            dragController.dragAktiv = false;
+            dragController.dragQuellIndex = -1;
+            dragController.dragZielIndex = -1;
+            dragController.dragUnterModus = false;
+        }
+
+        aufgabenDelegate.letzterZielIndex = -1;
+        aufgabenDelegate.unterzeilenModusAktiv = false;
+        aufgabenDelegate.unterzeilenZielIndex = -1;
+    }
+
     opacity: dragMausflaeche.pressed ? 0.72 : 1.0
 
     background: Rectangle {
@@ -133,12 +224,16 @@ QtControls.ItemDelegate {
             : (aufgabenDelegate.hovered
             ? Kirigami.Theme.hoverColor
             : Kirigami.Theme.backgroundColor)
-        border.width: aufgabenDelegate.unterzeilenModusAktiv ? 2 : 1
+        border.width: (aufgabenDelegate.unterzeilenModusAktiv || aufgabenDelegate.istDragZielGlobal || aufgabenDelegate.istDragQuelleGlobal) ? 2 : 1
         border.color: aufgabenDelegate.unterzeilenModusAktiv
             ? Kirigami.Theme.highlightColor
+            : (aufgabenDelegate.istDragZielGlobal
+            ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.85)
+            : (aufgabenDelegate.istDragQuelleGlobal
+            ? Qt.rgba(Kirigami.Theme.negativeTextColor.r, Kirigami.Theme.negativeTextColor.g, Kirigami.Theme.negativeTextColor.b, 0.65)
             : (aufgabenDelegate.dropAktiv
             ? Kirigami.Theme.highlightColor
-            : Qt.rgba(1, 1, 1, 0.12))
+            : Qt.rgba(1, 1, 1, 0.12))))
 
         Rectangle {
             anchors.fill: parent
@@ -181,6 +276,52 @@ QtControls.ItemDelegate {
             }
         }
 
+        Rectangle {
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.margins: Kirigami.Units.smallSpacing * 0.45
+            visible: aufgabenDelegate.istDragZielGlobal
+            radius: 3
+            color: aufgabenDelegate.istDragUnterModusGlobal
+                ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.88)
+                : Qt.rgba(0.2, 0.68, 0.36, 0.88)
+            border.width: 1
+            border.color: Qt.rgba(0, 0, 0, 0.22)
+            width: zielText.implicitWidth + Kirigami.Units.smallSpacing * 1.2
+            height: zielText.implicitHeight + Kirigami.Units.smallSpacing * 0.8
+
+            Text {
+                id: zielText
+                anchors.centerIn: parent
+                text: aufgabenDelegate.istDragUnterModusGlobal ? "ZIEL: UNTEREINTRAG" : "ZIEL: EINFUEGEN"
+                color: Kirigami.Theme.highlightedTextColor
+                font.pixelSize: Kirigami.Units.gridUnit * 0.42
+                font.bold: true
+            }
+        }
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.bottom: parent.bottom
+            anchors.margins: Kirigami.Units.smallSpacing * 0.45
+            visible: aufgabenDelegate.istDragQuelleGlobal
+            radius: 3
+            color: Qt.rgba(Kirigami.Theme.negativeTextColor.r, Kirigami.Theme.negativeTextColor.g, Kirigami.Theme.negativeTextColor.b, 0.78)
+            border.width: 1
+            border.color: Qt.rgba(0, 0, 0, 0.22)
+            width: quellText.implicitWidth + Kirigami.Units.smallSpacing * 1.2
+            height: quellText.implicitHeight + Kirigami.Units.smallSpacing * 0.8
+
+            Text {
+                id: quellText
+                anchors.centerIn: parent
+                text: "QUELLE"
+                color: Kirigami.Theme.highlightedTextColor
+                font.pixelSize: Kirigami.Units.gridUnit * 0.4
+                font.bold: true
+            }
+        }
+
         DropArea {
             id: dropZone
             anchors.fill: parent
@@ -217,8 +358,8 @@ QtControls.ItemDelegate {
 
         Item {
             id: dragGriff
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 0.55
-            Layout.maximumWidth: Kirigami.Units.gridUnit * 0.55
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 1.2
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 1.2
             Layout.fillHeight: true
             Layout.alignment: Qt.AlignVCenter
             opacity: dragMausflaeche.pressed ? 1.0 : (aufgabenDelegate.hovered ? 0.45 : 0.0)
@@ -232,74 +373,79 @@ QtControls.ItemDelegate {
 
             MouseArea {
                 id: dragMausflaeche
-                propagateComposedEvents: true
+                propagateComposedEvents: false
+                preventStealing: true
+                acceptedButtons: Qt.LeftButton
                 anchors.fill: parent
                 cursorShape: dragMausflaeche.pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
 
-                onPressed: {
+                onPressed: function(mouse) {
+                    mouse.accepted = true;
                     aufgabenDelegate.letzterZielIndex = -1;
-                    const globalPos = dragMausflaeche.mapToGlobal(mouseX, mouseY);
-                    aufgabenDelegate.dragStartScreenX = globalPos.x;
-                    aufgabenDelegate.dragStartIndex = aufgabenDelegate.index;
                     aufgabenDelegate.unterzeilenModusAktiv = false;
                     aufgabenDelegate.unterzeilenZielIndex = -1;
+
+                    const listView = aufgabenDelegate.ListView.view;
+                    if (!listView) {
+                        return;
+                    }
+                    const posInList = dragMausflaeche.mapToItem(listView, mouse.x, mouse.y);
+                    aufgabenDelegate.dragStartXInList = posInList.x;
+                    aufgabenDelegate.dragStartYInList = posInList.y;
+                    if (aufgabenDelegate.dragController) {
+                        aufgabenDelegate.dragController.dragAktiv = true;
+                        aufgabenDelegate.dragController.dragQuellIndex = aufgabenDelegate.index;
+                        aufgabenDelegate.dragController.dragZielIndex = aufgabenDelegate.index;
+                        aufgabenDelegate.dragController.dragUnterModus = false;
+                    }
                 }
 
                 onReleased: {
-                    console.log("Drag ENDED - subenty mode: " + aufgabenDelegate.unterzeilenModusAktiv + ", target index: " + aufgabenDelegate.unterzeilenZielIndex);
-                    if (aufgabenDelegate.unterzeilenModusAktiv && aufgabenDelegate.unterzeilenZielIndex >= 0
-                            && aufgabenDelegate.unterzeilenZielIndex !== aufgabenDelegate.dragStartIndex) {
-                        console.log("Converting entry " + aufgabenDelegate.dragStartIndex + " to subentry under " + aufgabenDelegate.unterzeilenZielIndex);
-                        aufgabenDelegate.alsUnterzeileVerschiebenAngefragt(
-                            aufgabenDelegate.dragStartIndex,
-                            aufgabenDelegate.unterzeilenZielIndex
-                        );
-                    }
-                    aufgabenDelegate.letzterZielIndex = -1;
-                    aufgabenDelegate.dragStartIndex = -1;
-                    aufgabenDelegate.unterzeilenModusAktiv = false;
-                    aufgabenDelegate.unterzeilenZielIndex = -1;
-                    aufgabenDelegate.verschiebenBeendet();
+                    aufgabenDelegate.dragAbschliessen();
+                }
+
+                onCanceled: {
+                    aufgabenDelegate.dragAbschliessen();
                 }
 
                 onPositionChanged: function(mouse) {
-                    // CRITICAL: Only the delegate that was originally pressed handles movement
-                    if (aufgabenDelegate.dragStartIndex !== aufgabenDelegate.index) {
-                        return;
-                    }
                     if (!dragMausflaeche.pressed) return;
                     const listView = aufgabenDelegate.ListView.view;
-                    if (!listView) return;
-
-                    // Horizontal delta via global coords (no coordinate-system drift)
-                    const currentScreenX = dragMausflaeche.mapToGlobal(mouse.x, mouse.y).x;
-                    const horizontalerVersatz = currentScreenX - aufgabenDelegate.dragStartScreenX;
-
-                    // Sticky subentry mode: once triggered, stays ON until release
-                    if (horizontalerVersatz > aufgabenDelegate.unterzeilenHorizontalSchwelle) {
-                        aufgabenDelegate.unterzeilenModusAktiv = true;
+                    if (!listView) {
+                        return;
                     }
 
-                    // Resolve target from global cursor position into the ListView content item
-                    const currentScreenY = dragMausflaeche.mapToGlobal(mouse.x, mouse.y).y;
-                    const posInContent = listView.contentItem.mapFromGlobal(currentScreenX, currentScreenY);
-                    let targetIdx = listView.indexAt(listView.width * 0.5, posInContent.y);
+                    const posInList = dragMausflaeche.mapToItem(listView, mouse.x, mouse.y);
+                    const horizontalerVersatz = posInList.x - aufgabenDelegate.dragStartXInList;
+                    const vertikalerVersatz = posInList.y - aufgabenDelegate.dragStartYInList;
+                    const yInContent = listView.contentY + posInList.y;
+                    const horizontalAbs = Math.abs(horizontalerVersatz);
+                    const vertikalAbs = Math.abs(vertikalerVersatz);
+
+                    // Aktivierung nur bei klar dominanter Rechtsbewegung
+                    if (!aufgabenDelegate.unterzeilenModusAktiv
+                            && horizontalerVersatz > aufgabenDelegate.unterzeilenHorizontalSchwelle
+                            && horizontalAbs > (vertikalAbs * 1.35)) {
+                        aufgabenDelegate.unterzeilenModusAktiv = true;
+                    }
+                    if (aufgabenDelegate.dragController) {
+                        aufgabenDelegate.dragController.dragUnterModus = aufgabenDelegate.unterzeilenModusAktiv;
+                    }
+
+                    let targetIdx = listView.indexAt(listView.width * 0.5, yInContent);
                     if (targetIdx < 0) {
-                        targetIdx = posInContent.y < 0 ? 0 : (listView.count - 1);
+                        targetIdx = yInContent < 0 ? 0 : (listView.count - 1);
                     }
                     targetIdx = Math.max(0, Math.min(listView.count - 1, targetIdx));
 
                     // Always keep target index current (needed for correct release handling)
                     aufgabenDelegate.unterzeilenZielIndex = targetIdx;
+                    if (aufgabenDelegate.dragController) {
+                        aufgabenDelegate.dragController.dragZielIndex = targetIdx;
+                    }
 
                     // In subentry mode: only track target, never reorder
                     if (aufgabenDelegate.unterzeilenModusAktiv) {
-                        return;
-                    }
-
-                    // Pre-subentry guard: any rightward movement blocks reorder
-                    // (prevents item jumping before 25px which would corrupt index)
-                    if (horizontalerVersatz > 3) {
                         return;
                     }
 
@@ -308,7 +454,7 @@ QtControls.ItemDelegate {
                         return;
                     }
                     aufgabenDelegate.letzterZielIndex = targetIdx;
-                    aufgabenDelegate.verschoben(aufgabenDelegate.index, targetIdx);
+                    aufgabenDelegate.verschiebeEintrag(aufgabenDelegate.index, targetIdx);
                 }
             }
         }
@@ -442,8 +588,7 @@ QtControls.ItemDelegate {
             Item {
                 Layout.fillWidth: true
                 visible: !aufgabenDelegate.bearbeitungsModus
-                         && Array.isArray(aufgabenDelegate.untereintraege)
-                         && aufgabenDelegate.untereintraege.length > 0
+                         && aufgabenDelegate.untereintraegeAnzahl() > 0
                 implicitHeight: untereintraegeSpalte.implicitHeight
 
                 ColumnLayout {
@@ -520,6 +665,30 @@ QtControls.ItemDelegate {
                                 }
                             }
 
+                            QtControls.Button {
+                                id: unterZurueckButton
+                                visible: aufgabenDelegate.bearbeiteterUntereintragIndex !== parent.index
+                                text: "←"
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.5
+                                Layout.preferredHeight: Kirigami.Units.gridUnit * 0.68
+                                Layout.preferredWidth: Kirigami.Units.gridUnit * 0.68
+                                Layout.maximumWidth: Kirigami.Units.gridUnit * 0.68
+                                Layout.alignment: Qt.AlignTop
+                                opacity: unterZurueckButton.hovered ? 1.0 : 0.75
+
+                                onClicked: {
+                                    aufgabenDelegate.untereintragZuHaupteintrag(untereintragZeile.index);
+                                }
+
+                                QtControls.ToolTip {
+                                    // qmllint disable unqualified
+                                    text: i18n("Zur Hauptebene verschieben")
+                                    // qmllint enable unqualified
+                                    delay: 500
+                                    visible: unterZurueckButton.hovered
+                                }
+                            }
+
                             QtControls.TextArea {
                                 id: untereintragEingabe
                                 Layout.fillWidth: true
@@ -562,6 +731,80 @@ QtControls.ItemDelegate {
                 // qmllint enable unqualified
                 elide: Text.ElideRight
                 color: aufgabenDelegate.istUeberfaellig(aufgabenDelegate.faelligkeit) ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.disabledTextColor
+            }
+        }
+
+        RowLayout {
+            Layout.alignment: Qt.AlignVCenter
+            spacing: Kirigami.Units.smallSpacing * 0.2
+
+            QtControls.Button {
+                id: hochButton
+                text: "↑"
+                font.pixelSize: Kirigami.Units.gridUnit * 0.52
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 0.72
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 0.72
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 0.72
+                enabled: aufgabenDelegate.index > 0
+                opacity: hochButton.enabled ? (hochButton.hovered ? 1.0 : 0.72) : 0.35
+
+                onClicked: {
+                    aufgabenDelegate.verschiebeEintrag(aufgabenDelegate.index, aufgabenDelegate.index - 1);
+                }
+
+                QtControls.ToolTip {
+                    // qmllint disable unqualified
+                    text: i18n("Eine Position nach oben")
+                    // qmllint enable unqualified
+                    delay: 500
+                    visible: hochButton.hovered
+                }
+            }
+
+            QtControls.Button {
+                id: runterButton
+                text: "↓"
+                font.pixelSize: Kirigami.Units.gridUnit * 0.52
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 0.72
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 0.72
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 0.72
+                enabled: aufgabenDelegate.ListView.view ? aufgabenDelegate.index < (aufgabenDelegate.ListView.view.count - 1) : false
+                opacity: runterButton.enabled ? (runterButton.hovered ? 1.0 : 0.72) : 0.35
+
+                onClicked: {
+                    aufgabenDelegate.verschiebeEintrag(aufgabenDelegate.index, aufgabenDelegate.index + 1);
+                }
+
+                QtControls.ToolTip {
+                    // qmllint disable unqualified
+                    text: i18n("Eine Position nach unten")
+                    // qmllint enable unqualified
+                    delay: 500
+                    visible: runterButton.hovered
+                }
+            }
+
+            QtControls.Button {
+                id: unterzeileButton
+                text: "→"
+                font.pixelSize: Kirigami.Units.gridUnit * 0.52
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 0.72
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 0.72
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 0.72
+                enabled: aufgabenDelegate.index > 0
+                opacity: unterzeileButton.enabled ? (unterzeileButton.hovered ? 1.0 : 0.72) : 0.35
+
+                onClicked: {
+                    aufgabenDelegate.verschiebeAlsUnterzeile(aufgabenDelegate.index, aufgabenDelegate.index - 1);
+                }
+
+                QtControls.ToolTip {
+                    // qmllint disable unqualified
+                    text: i18n("Als Unterzeile unter die vorherige Aufgabe")
+                    // qmllint enable unqualified
+                    delay: 500
+                    visible: unterzeileButton.hovered
+                }
             }
         }
 

@@ -86,7 +86,7 @@ ListModel {
             erledigt: !!erledigt
         });
 
-        setProperty(index, "untereintraege", liste);
+        setzeUntereintraege(index, liste);
         persistiere();
     }
 
@@ -106,7 +106,7 @@ ListModel {
         }
 
         liste[unterIndex].beschreibung = bereinigt;
-        setProperty(index, "untereintraege", liste);
+        setzeUntereintraege(index, liste);
         persistiere();
     }
 
@@ -117,7 +117,7 @@ ListModel {
 
         const liste = klonUntereintraege(index);
         liste[unterIndex].prioritaet = prioritaet;
-        setProperty(index, "untereintraege", liste);
+        setzeUntereintraege(index, liste);
         persistiere();
     }
 
@@ -128,12 +128,18 @@ ListModel {
 
         const liste = klonUntereintraege(index);
         liste[unterIndex].erledigt = !!erledigt;
-        setProperty(index, "untereintraege", liste);
+        setzeUntereintraege(index, liste);
         persistiere();
     }
 
     function eintragAlsUnterzeileVerschieben(quellIndex, zielIndex) {
-        if (!istGueltigerIndex(quellIndex) || !istGueltigerIndex(zielIndex) || quellIndex === zielIndex) {
+        if (!istGueltigerIndex(quellIndex)) {
+            return;
+        }
+        if (!istGueltigerIndex(zielIndex)) {
+            return;
+        }
+        if (quellIndex === zielIndex) {
             return;
         }
 
@@ -151,7 +157,7 @@ ListModel {
             erledigt: !!quelle.erledigt
         });
 
-        const quellenUnter = Array.isArray(quelle.untereintraege) ? quelle.untereintraege : [];
+        const quellenUnter = normalisiereListe(quelle.untereintraege);
         for (let i = 0; i < quellenUnter.length; ++i) {
             const unter = quellenUnter[i];
             const text = (unter && unter.beschreibung ? unter.beschreibung : "").trim();
@@ -166,14 +172,41 @@ ListModel {
             });
         }
 
-        setProperty(zielIndex, "untereintraege", zielUntereintraege);
+        setzeUntereintraege(zielIndex, zielUntereintraege);
 
-        const zielNachher = get(zielIndex).untereintraege;
-        if (!Array.isArray(zielNachher) || zielNachher.length <= anzahlVorher) {
+        const zielNachher = klonUntereintraege(zielIndex);
+        if (zielNachher.length <= anzahlVorher) {
             return;
         }
 
         remove(quellIndex, 1);
+        persistiere();
+    }
+
+    function untereintragZuHaupteintrag(index, unterIndex) {
+        if (!istGueltigerUntereintragIndex(index, unterIndex)) {
+            return;
+        }
+
+        const liste = klonUntereintraege(index);
+        const unter = liste[unterIndex] || {};
+        const beschreibung = (unter.beschreibung || "").trim();
+        if (!beschreibung) {
+            return;
+        }
+
+        liste.splice(unterIndex, 1);
+        setzeUntereintraege(index, liste);
+
+        const neuerEintrag = {
+            beschreibung: beschreibung,
+            prioritaet: AufgabenLogik.istGueltigePrioritaet(unter.prioritaet) ? unter.prioritaet : 0,
+            faelligkeit: "",
+            untereintraege: [],
+            erledigt: !!unter.erledigt
+        };
+
+        insert(index + 1, neuerEintrag);
         persistiere();
     }
 
@@ -233,10 +266,7 @@ ListModel {
     }
 
     function klonUntereintraege(index) {
-        const quelle = get(index).untereintraege;
-        if (!Array.isArray(quelle)) {
-            return [];
-        }
+        const quelle = normalisiereListe(get(index).untereintraege);
 
         const kopie = [];
         for (let i = 0; i < quelle.length; ++i) {
@@ -251,13 +281,52 @@ ListModel {
         return kopie;
     }
 
+    function setzeUntereintraege(index, liste) {
+        if (!istGueltigerIndex(index)) {
+            return;
+        }
+
+        const eintrag = get(index);
+        set(index, {
+            beschreibung: eintrag.beschreibung,
+            prioritaet: AufgabenLogik.istGueltigePrioritaet(eintrag.prioritaet) ? eintrag.prioritaet : 0,
+            faelligkeit: typeof eintrag.faelligkeit === "string" ? eintrag.faelligkeit : "",
+            untereintraege: liste,
+            erledigt: !!eintrag.erledigt
+        });
+    }
+
     function istGueltigerUntereintragIndex(index, unterIndex) {
         if (!istGueltigerIndex(index) || unterIndex < 0) {
             return false;
         }
 
-        const liste = get(index).untereintraege;
-        return Array.isArray(liste) && unterIndex < liste.length;
+        const liste = normalisiereListe(get(index).untereintraege);
+        return unterIndex < liste.length;
+    }
+
+    function normalisiereListe(wert) {
+        if (Array.isArray(wert)) {
+            return wert;
+        }
+
+        const liste = [];
+
+        if (wert && typeof wert.length === "number") {
+            for (let i = 0; i < wert.length; ++i) {
+                liste.push(wert[i]);
+            }
+            return liste;
+        }
+
+        if (wert && typeof wert.count === "number" && typeof wert.get === "function") {
+            for (let i = 0; i < wert.count; ++i) {
+                liste.push(wert.get(i));
+            }
+            return liste;
+        }
+
+        return [];
     }
 
     Component.onCompleted: ausJsonLaden(tasksJson)
