@@ -144,6 +144,7 @@ ListModel {
         }
 
         const zielUntereintraege = klonUntereintraege(zielIndex);
+        const anzahlVorher = zielUntereintraege.length;
         zielUntereintraege.push({
             beschreibung: quellBeschreibung,
             prioritaet: AufgabenLogik.istGueltigePrioritaet(quelle.prioritaet) ? quelle.prioritaet : 0,
@@ -166,6 +167,12 @@ ListModel {
         }
 
         setProperty(zielIndex, "untereintraege", zielUntereintraege);
+
+        const zielNachher = get(zielIndex).untereintraege;
+        if (!Array.isArray(zielNachher) || zielNachher.length <= anzahlVorher) {
+            return;
+        }
+
         remove(quellIndex, 1);
         persistiere();
     }
