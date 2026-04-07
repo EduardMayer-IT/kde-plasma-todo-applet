@@ -23,6 +23,7 @@ QtControls.ItemDelegate {
     signal prioritaetGewechselt(int neuePrioritaet)
     signal beschreibungGewechselt(string neueBeschreibung)
     signal loeschenAngefragt()
+    signal verschoben(int vonIndex, int nachIndex)
 
     readonly property real zeilenHoehe: Kirigami.Units.gridUnit * 0.9
     readonly property real loeschenSpaltenBreite: Kirigami.Units.gridUnit * 4.8
@@ -52,6 +53,8 @@ QtControls.ItemDelegate {
         bearbeitungsModus = false;
     }
 
+    opacity: dragMausflaeche.pressed ? 0.72 : 1.0
+
     background: Rectangle {
         radius: 4
         color: aufgabenDelegate.hovered
@@ -72,6 +75,41 @@ QtControls.ItemDelegate {
             textBlock.implicitHeight,
             aufgabenDelegate.zeilenHoehe - (aufgabenDelegate.padding * 2)
         )
+
+        Item {
+            id: dragGriff
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 0.55
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 0.55
+            Layout.fillHeight: true
+            Layout.alignment: Qt.AlignVCenter
+            opacity: dragMausflaeche.pressed ? 1.0 : (aufgabenDelegate.hovered ? 0.45 : 0.0)
+
+            Text {
+                anchors.centerIn: parent
+                text: "⠿"
+                color: Kirigami.Theme.textColor
+                font.pixelSize: Kirigami.Units.gridUnit * 0.6
+            }
+
+            MouseArea {
+                id: dragMausflaeche
+                anchors.fill: parent
+                cursorShape: dragMausflaeche.pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+
+                onPositionChanged: function(mouse) {
+                    if (!dragMausflaeche.pressed) return;
+                    const listView = aufgabenDelegate.ListView.view;
+                    if (!listView) return;
+                    const posInContent = dragMausflaeche.mapToItem(listView.contentItem, mouse.x, mouse.y);
+                    const itemH = aufgabenDelegate.height + listView.spacing;
+                    let targetIdx = Math.floor(posInContent.y / itemH);
+                    targetIdx = Math.max(0, Math.min(listView.count - 1, targetIdx));
+                    if (targetIdx !== aufgabenDelegate.index) {
+                        aufgabenDelegate.verschoben(aufgabenDelegate.index, targetIdx);
+                    }
+                }
+            }
+        }
 
         QtControls.CheckBox {
             id: erledigtCheck

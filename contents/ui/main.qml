@@ -96,6 +96,10 @@ PlasmoidItem {
                         aufgabenModell.beschreibungSetzen(index, neueBeschreibung);
                     }
 
+                    onVerschoben: function(vonIndex, nachIndex) {
+                        aufgabenModell.verschieben(vonIndex, nachIndex);
+                    }
+
                     onLoeschenAngefragt: {
                         aufgabenModell.aufgabeLoeschen(index);
                     }

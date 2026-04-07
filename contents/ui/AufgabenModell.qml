@@ -69,6 +69,15 @@ ListModel {
         persistiere();
     }
 
+    function verschieben(von, nach) {
+        if (!istGueltigerIndex(von) || !istGueltigerIndex(nach) || von === nach) {
+            return;
+        }
+
+        move(von, nach, 1);
+        persistiere();
+    }
+
     function aktualisiereFaelligkeit(index, faelligkeit) {
         if (!istGueltigerIndex(index)) {
             return;
