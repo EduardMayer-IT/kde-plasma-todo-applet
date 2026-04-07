@@ -27,6 +27,7 @@ QtControls.ItemDelegate {
     property bool dropAktiv: false
     property bool unterzeilenModusAktiv: false
     property real dragStartScreenX: 0
+    property int dragStartIndex: -1
     property int unterzeilenZielIndex: -1
 
     signal erledigtGewechselt(bool istErledigt)
@@ -239,6 +240,7 @@ QtControls.ItemDelegate {
                     aufgabenDelegate.letzterZielIndex = -1;
                     const globalPos = dragMausflaeche.mapToGlobal(mouseX, mouseY);
                     aufgabenDelegate.dragStartScreenX = globalPos.x;
+                    aufgabenDelegate.dragStartIndex = aufgabenDelegate.index;
                     aufgabenDelegate.unterzeilenModusAktiv = false;
                     aufgabenDelegate.unterzeilenZielIndex = -1;
                 }
@@ -246,14 +248,15 @@ QtControls.ItemDelegate {
                 onReleased: {
                     console.log("Drag ENDED - subenty mode: " + aufgabenDelegate.unterzeilenModusAktiv + ", target index: " + aufgabenDelegate.unterzeilenZielIndex);
                     if (aufgabenDelegate.unterzeilenModusAktiv && aufgabenDelegate.unterzeilenZielIndex >= 0
-                            && aufgabenDelegate.unterzeilenZielIndex !== aufgabenDelegate.index) {
-                        console.log("Converting entry " + aufgabenDelegate.index + " to subentry under " + aufgabenDelegate.unterzeilenZielIndex);
+                            && aufgabenDelegate.unterzeilenZielIndex !== aufgabenDelegate.dragStartIndex) {
+                        console.log("Converting entry " + aufgabenDelegate.dragStartIndex + " to subentry under " + aufgabenDelegate.unterzeilenZielIndex);
                         aufgabenDelegate.alsUnterzeileVerschiebenAngefragt(
-                            aufgabenDelegate.index,
+                            aufgabenDelegate.dragStartIndex,
                             aufgabenDelegate.unterzeilenZielIndex
                         );
                     }
                     aufgabenDelegate.letzterZielIndex = -1;
+                    aufgabenDelegate.dragStartIndex = -1;
                     aufgabenDelegate.unterzeilenModusAktiv = false;
                     aufgabenDelegate.unterzeilenZielIndex = -1;
                     aufgabenDelegate.verschiebenBeendet();
@@ -273,12 +276,12 @@ QtControls.ItemDelegate {
                         aufgabenDelegate.unterzeilenModusAktiv = true;
                     }
 
-                    // Target: delegate.y is already in content coords → no contentY offset needed
-                    const mouseRelDelegate = dragMausflaeche.mapToItem(aufgabenDelegate, mouse.x, mouse.y);
-                    const mouseYInContent = aufgabenDelegate.y + mouseRelDelegate.y;
-                    let targetIdx = listView.indexAt(0, mouseYInContent);
+                    // Resolve target from global cursor position into the ListView content item
+                    const currentScreenY = dragMausflaeche.mapToGlobal(mouse.x, mouse.y).y;
+                    const posInContent = listView.contentItem.mapFromGlobal(currentScreenX, currentScreenY);
+                    let targetIdx = listView.indexAt(listView.width * 0.5, posInContent.y);
                     if (targetIdx < 0) {
-                        targetIdx = mouseYInContent < 0 ? 0 : (listView.count - 1);
+                        targetIdx = posInContent.y < 0 ? 0 : (listView.count - 1);
                     }
                     targetIdx = Math.max(0, Math.min(listView.count - 1, targetIdx));
 
