@@ -233,7 +233,6 @@ QtControls.ItemDelegate {
             MouseArea {
                 id: dragMausflaeche
                 anchors.fill: parent
-                preventStealing: true
                 cursorShape: dragMausflaeche.pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
 
                 onPressed: {
