@@ -7,6 +7,9 @@ A native, lightweight to-do list widget for KDE Plasma 6. Manage your daily task
 ## Features
 
 -  **Add, edit, and delete tasks** – Manage your to-do list efficiently
+-  **Structured subentries** – Convert tasks into visible subentries with their own checkbox and priority state
+-  **Drag-and-drop organization** – Reorder tasks vertically or drag right to turn them into subentries
+-  **Live drag preview** – The widget highlights source and target while dragging
 -  **Priority levels** – Mark tasks as low, medium, or high priority with visual indicators
 -  **Due dates** – Set and track task deadlines
 -  **Persistent storage** – Tasks are saved automatically in Plasma configuration
@@ -57,8 +60,16 @@ A native, lightweight to-do list widget for KDE Plasma 6. Manage your daily task
 ### Managing Tasks
 - **Mark as done:** Click the checkbox to toggle completion status
 - **Delete:** Click the "Löschen" (Delete) button on the right
+- **Reorder tasks:** Drag the handle vertically or use the `↑` / `↓` fallback buttons
+- **Create a subentry:** Drag a task clearly to the right onto another task or use the `→` button
+- **Move a subentry back to top level:** Click the `←` button next to the subentry
 - **Priority indicator:** The colored bar on the left shows task priority (green=low, orange=medium, red=high)
 - **Due date:** Displayed below the task description (red if overdue)
+
+### Drag Feedback
+- **QUELLE** marks the task currently being dragged
+- **ZIEL: EINFUEGEN** shows the current reorder target
+- **ZIEL: UNTEREINTRAG** shows that the current drop target will receive the task as a subentry
 
 ### Configuration
 Tasks are stored in:
@@ -169,6 +180,9 @@ Ein natives, schlankes Aufgabenlisten-Widget für KDE Plasma 6. Verwalte deine t
 ## Funktionen
 
 -  **Aufgaben hinzufügen, bearbeiten und löschen** – Effiziente Aufgabenverwaltung
+-  **Strukturierte Untereinträge** – Aufgaben können als sichtbare Untereinträge mit eigener Checkbox und Priorität geführt werden
+-  **Drag-and-drop-Organisation** – Aufgaben vertikal sortieren oder nach rechts ziehen, um sie als Untereintrag abzulegen
+-  **Live-Vorschau beim Ziehen** – Quelle und Ziel werden beim Draggen sichtbar markiert
 -  **Prioritätsstufen** – Kennzeichne Aufgaben mit niedrig, mittel oder hoch (visuelle Indikatoren)
 -  **Fälligkeitsdaten** – Setze und verfolge Aufgabenfristen
 -  **Persistente Speicherung** – Aufgaben werden automatisch in der Plasma-Konfiguration gespeichert
@@ -219,8 +233,16 @@ Ein natives, schlankes Aufgabenlisten-Widget für KDE Plasma 6. Verwalte deine t
 ### Aufgaben verwalten
 - **Als erledigt markieren:** Checkbox klicken
 - **Löschen:** "Löschen"-Button auf der rechten Seite klicken
+- **Aufgaben verschieben:** Am Griff vertikal ziehen oder die Fallback-Buttons `↑` / `↓` verwenden
+- **Untereintrag erzeugen:** Eine Aufgabe deutlich nach rechts auf eine andere ziehen oder den `→`-Button verwenden
+- **Untereintrag zurückholen:** Beim Untereintrag auf `←` klicken, um ihn wieder auf Hauptebene zu holen
 - **Prioritätsanzeige:** Der farbige Balken links zeigt die Priorität (grün=niedrig, orange=mittel, rot=hoch)
 - **Fälligkeitsdatum:** Unter der Aufgabenbeschreibung angezeigt (rot wenn überfällig)
+
+### Zieh-Vorschau
+- **QUELLE** markiert den aktuell gezogenen Eintrag
+- **ZIEL: EINFUEGEN** zeigt das aktuelle Sortierziel beim vertikalen Verschieben
+- **ZIEL: UNTEREINTRAG** zeigt, dass der Eintrag beim Loslassen als Untereintrag abgelegt wird
 
 ### Konfiguration
 Aufgaben werden gespeichert in:
