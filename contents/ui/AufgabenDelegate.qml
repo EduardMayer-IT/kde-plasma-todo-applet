@@ -45,6 +45,7 @@ QtControls.ItemDelegate {
     readonly property real loeschenSpaltenBreite: Kirigami.Units.gridUnit * 4.8
     readonly property real checkboxSpaltenBreite: Kirigami.Units.gridUnit * 0.82
     readonly property real prioritaetsSpaltenBreite: Kirigami.Units.gridUnit * 0.33
+    readonly property real unterzeilenHorizontalSchwelle: Kirigami.Units.gridUnit * 0.16
 
     width: ListView.view ? ListView.view.width : implicitWidth
     padding: Kirigami.Units.smallSpacing * 0.04
@@ -250,7 +251,7 @@ QtControls.ItemDelegate {
 
                     targetIdx = Math.max(0, Math.min(listView.count - 1, targetIdx));
 
-                    aufgabenDelegate.unterzeilenModusAktiv = horizontalerVersatz > (Kirigami.Units.gridUnit * 0.9);
+                    aufgabenDelegate.unterzeilenModusAktiv = horizontalerVersatz > aufgabenDelegate.unterzeilenHorizontalSchwelle;
                     aufgabenDelegate.unterzeilenZielIndex = targetIdx;
 
                     if (aufgabenDelegate.unterzeilenModusAktiv) {
