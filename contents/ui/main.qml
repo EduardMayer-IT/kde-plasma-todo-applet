@@ -81,6 +81,14 @@ PlasmoidItem {
                 spacing: Kirigami.Units.smallSpacing * 0.05
                 model: aufgabenModell
 
+                displaced: Transition {
+                    NumberAnimation {
+                        properties: "x,y"
+                        duration: 95
+                        easing.type: Easing.OutCubic
+                    }
+                }
+
                 delegate: AufgabenDelegate {
                     width: aufgabenListe.width
 

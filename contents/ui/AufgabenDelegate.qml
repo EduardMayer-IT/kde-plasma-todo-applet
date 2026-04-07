@@ -18,6 +18,7 @@ QtControls.ItemDelegate {
     required property bool erledigt
     property bool bearbeitungsModus: false
     property string bearbeitungsText: ""
+    property int letzterZielIndex: -1
 
     signal erledigtGewechselt(bool istErledigt)
     signal prioritaetGewechselt(int neuePrioritaet)
@@ -94,19 +95,37 @@ QtControls.ItemDelegate {
             MouseArea {
                 id: dragMausflaeche
                 anchors.fill: parent
+                preventStealing: true
                 cursorShape: dragMausflaeche.pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+
+                onPressed: {
+                    aufgabenDelegate.letzterZielIndex = -1;
+                }
+
+                onReleased: {
+                    aufgabenDelegate.letzterZielIndex = -1;
+                }
 
                 onPositionChanged: function(mouse) {
                     if (!dragMausflaeche.pressed) return;
                     const listView = aufgabenDelegate.ListView.view;
                     if (!listView) return;
-                    const posInContent = dragMausflaeche.mapToItem(listView.contentItem, mouse.x, mouse.y);
-                    const itemH = aufgabenDelegate.height + listView.spacing;
-                    let targetIdx = Math.floor(posInContent.y / itemH);
-                    targetIdx = Math.max(0, Math.min(listView.count - 1, targetIdx));
-                    if (targetIdx !== aufgabenDelegate.index) {
-                        aufgabenDelegate.verschoben(aufgabenDelegate.index, targetIdx);
+                    const posInList = dragMausflaeche.mapToItem(listView, mouse.x, mouse.y);
+                    const yInContent = listView.contentY + posInList.y;
+                    let targetIdx = listView.indexAt(listView.width * 0.5, yInContent);
+
+                    if (targetIdx < 0) {
+                        targetIdx = yInContent < 0 ? 0 : listView.count - 1;
                     }
+
+                    targetIdx = Math.max(0, Math.min(listView.count - 1, targetIdx));
+
+                    if (targetIdx === aufgabenDelegate.index || targetIdx === aufgabenDelegate.letzterZielIndex) {
+                        return;
+                    }
+
+                    aufgabenDelegate.letzterZielIndex = targetIdx;
+                    aufgabenDelegate.verschoben(aufgabenDelegate.index, targetIdx);
                 }
             }
         }
