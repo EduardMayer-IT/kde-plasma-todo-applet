@@ -123,13 +123,17 @@ PlasmoidItem {
 
         RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: Kirigami.Units.gridUnit * 1.46
+            Layout.preferredHeight: Math.max(
+                Kirigami.Units.gridUnit * 1.46,
+                neueAufgabeEingabe.contentHeight + (neueAufgabeEingabe.padding * 2) + (Kirigami.Units.smallSpacing * 0.2)
+            )
             spacing: Kirigami.Units.smallSpacing * 0.45
 
             Rectangle {
                 id: prioritaetFeld
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 1.18
                 Layout.preferredWidth: Kirigami.Units.gridUnit * 1.18
+                Layout.alignment: Qt.AlignTop
                 radius: 3
                 color: root.prioritaetFarbe(root.neueAufgabePrioritaet)
                 border.width: 1
@@ -153,31 +157,48 @@ PlasmoidItem {
                 }
             }
 
-            QtControls.TextField {
+            QtControls.TextArea {
                 id: neueAufgabeEingabe
                 Layout.fillWidth: true
-                Layout.preferredHeight: Kirigami.Units.gridUnit * 1.18
+                Layout.alignment: Qt.AlignTop
+                Layout.preferredHeight: Math.min(
+                    Kirigami.Units.gridUnit * 3.1,
+                    Math.max(Kirigami.Units.gridUnit * 1.18, contentHeight + (padding * 2))
+                )
                 font.pixelSize: Kirigami.Units.gridUnit * 0.72
-                topPadding: Kirigami.Units.smallSpacing * 0.32
-                bottomPadding: Kirigami.Units.smallSpacing * 0.32
-                leftPadding: Kirigami.Units.smallSpacing * 0.6
-                rightPadding: Kirigami.Units.smallSpacing * 0.6
+                padding: Kirigami.Units.smallSpacing * 0.45
+                wrapMode: Text.Wrap
                 // qmllint disable unqualified
                 placeholderText: i18n("Neue Aufgabe eingeben...")
                 // qmllint enable unqualified
                 focus: true
-                
-                onAccepted: root.aufgabeAusEingabeHinzufuegen()
+
+                Keys.onPressed: function(event) {
+                    if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+                            && (event.modifiers & Qt.ControlModifier)) {
+                        event.accepted = true;
+                        root.aufgabeAusEingabeHinzufuegen();
+                    }
+                }
             }
 
             QtControls.Button {
+                id: hinzufuegenButton
                 // qmllint disable unqualified
                 text: i18n("+")
                 // qmllint enable unqualified
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 1.18
                 Layout.preferredWidth: Kirigami.Units.gridUnit * 1.18
+                Layout.alignment: Qt.AlignTop
                 font.bold: true
                 onClicked: root.aufgabeAusEingabeHinzufuegen()
+                QtControls.ToolTip {
+                    // qmllint disable unqualified
+                    text: i18n("Aufgabe hinzufuegen (Ctrl+Enter)")
+                    // qmllint enable unqualified
+                    delay: 300
+                    visible: hinzufuegenButton.hovered
+                }
             }
         }
     }

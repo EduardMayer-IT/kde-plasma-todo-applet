@@ -197,7 +197,7 @@ QtControls.ItemDelegate {
             id: textBlock
             Layout.fillWidth: true
             Layout.alignment: Qt.AlignVCenter
-            spacing: 0
+            spacing: Kirigami.Units.smallSpacing * 0.08
 
             QtControls.Label {
                 id: beschreibungsLabel
@@ -207,8 +207,7 @@ QtControls.ItemDelegate {
                 font.pixelSize: Kirigami.Units.gridUnit * 0.66
                 font.bold: true
                 font.strikeout: aufgabenDelegate.erledigt
-                elide: Text.ElideRight
-                wrapMode: Text.NoWrap
+                wrapMode: Text.Wrap
                 opacity: aufgabenDelegate.erledigt ? 0.65 : 1.0
                 color: Kirigami.Theme.textColor
 
@@ -223,17 +222,30 @@ QtControls.ItemDelegate {
                 }
             }
 
-            QtControls.TextField {
+            QtControls.TextArea {
                 id: bearbeitungsEingabe
                 Layout.fillWidth: true
                 visible: aufgabenDelegate.bearbeitungsModus
                 text: aufgabenDelegate.bearbeitungsText
                 font.pixelSize: Kirigami.Units.gridUnit * 0.66
                 selectByMouse: true
+                wrapMode: Text.Wrap
+                padding: Kirigami.Units.smallSpacing * 0.35
+                Layout.preferredHeight: Math.min(
+                    Kirigami.Units.gridUnit * 3.0,
+                    Math.max(Kirigami.Units.gridUnit * 1.2, contentHeight + (padding * 2))
+                )
                 onTextChanged: aufgabenDelegate.bearbeitungsText = text
-                onAccepted: aufgabenDelegate.bearbeitungSpeichern()
                 onActiveFocusChanged: {
                     if (!activeFocus && aufgabenDelegate.bearbeitungsModus) {
+                        aufgabenDelegate.bearbeitungSpeichern();
+                    }
+                }
+
+                Keys.onPressed: function(event) {
+                    if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+                            && (event.modifiers & Qt.ControlModifier)) {
+                        event.accepted = true;
                         aufgabenDelegate.bearbeitungSpeichern();
                     }
                 }
