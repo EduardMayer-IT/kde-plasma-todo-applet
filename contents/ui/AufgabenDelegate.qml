@@ -21,18 +21,18 @@ QtControls.ItemDelegate {
     signal prioritaetGewechselt(int neuePrioritaet)
     signal loeschenAngefragt()
 
-    readonly property real zeilenHoehe: Kirigami.Units.gridUnit * 1.35
+    readonly property real zeilenHoehe: Kirigami.Units.gridUnit * 0.9
     readonly property real loeschenSpaltenBreite: Kirigami.Units.gridUnit * 4.8
-    readonly property real checkboxSpaltenBreite: Kirigami.Units.gridUnit * 1.15
+    readonly property real checkboxSpaltenBreite: Kirigami.Units.gridUnit * 0.82
     readonly property real prioritaetsSpaltenBreite: Kirigami.Units.gridUnit * 0.33
 
     width: ListView.view ? ListView.view.width : implicitWidth
-    padding: Kirigami.Units.smallSpacing * 0.22
+    padding: Kirigami.Units.smallSpacing * 0.04
     implicitHeight: Math.max(zeilenHoehe, contentItem.implicitHeight + (padding * 2))
     height: implicitHeight
 
     background: Rectangle {
-        radius: 6
+        radius: 4
         color: aufgabenDelegate.erledigt
             ? Qt.rgba(0.2, 0.65, 0.3, 0.16)
             : (aufgabenDelegate.hovered ? Kirigami.Theme.hoverColor : Kirigami.Theme.backgroundColor)
@@ -41,7 +41,7 @@ QtControls.ItemDelegate {
     }
 
     contentItem: RowLayout {
-        spacing: Kirigami.Units.smallSpacing * 0.2
+        spacing: Kirigami.Units.smallSpacing * 0.03
         width: aufgabenDelegate.availableWidth
         height: implicitHeight
 
@@ -99,6 +99,7 @@ QtControls.ItemDelegate {
             QtControls.Label {
                 Layout.fillWidth: true
                 text: aufgabenDelegate.beschreibung
+                font.pixelSize: Kirigami.Units.gridUnit * 0.66
                 font.bold: true
                 font.strikeout: aufgabenDelegate.erledigt
                 elide: Text.ElideRight
@@ -110,6 +111,7 @@ QtControls.ItemDelegate {
             QtControls.Label {
                 Layout.fillWidth: true
                 visible: aufgabenDelegate.faelligkeit.length > 0
+                font.pixelSize: Kirigami.Units.gridUnit * 0.56
                 // qmllint disable unqualified
                 text: i18n("Faellig: %1", aufgabenDelegate.faelligkeit)
                 // qmllint enable unqualified
@@ -121,11 +123,11 @@ QtControls.ItemDelegate {
         QtControls.Button {
             id: loeschenButton
             text: "✕"
-            font.pixelSize: Kirigami.Units.gridUnit * 1.0
+            font.pixelSize: Kirigami.Units.gridUnit * 0.7
             font.bold: true
-            Layout.preferredHeight: Kirigami.Units.gridUnit * 1.15
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 1.15
-            Layout.maximumWidth: Kirigami.Units.gridUnit * 1.15
+            Layout.preferredHeight: Kirigami.Units.gridUnit * 0.78
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 0.78
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 0.78
             Layout.alignment: Qt.AlignVCenter
             
             background: Rectangle {
