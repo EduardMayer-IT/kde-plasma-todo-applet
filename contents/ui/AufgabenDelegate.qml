@@ -54,9 +54,9 @@ QtControls.ItemDelegate {
 
     background: Rectangle {
         radius: 4
-        color: aufgabenDelegate.erledigt
-            ? Qt.rgba(0.2, 0.65, 0.3, 0.16)
-            : (aufgabenDelegate.hovered ? Kirigami.Theme.hoverColor : Kirigami.Theme.backgroundColor)
+        color: aufgabenDelegate.hovered
+            ? Kirigami.Theme.hoverColor
+            : Kirigami.Theme.backgroundColor
         border.width: 1
         border.color: Qt.rgba(1, 1, 1, 0.12)
     }
@@ -76,11 +76,34 @@ QtControls.ItemDelegate {
         QtControls.CheckBox {
             id: erledigtCheck
             checked: aufgabenDelegate.erledigt
+            hoverEnabled: true
             Layout.preferredWidth: aufgabenDelegate.checkboxSpaltenBreite
             Layout.maximumWidth: aufgabenDelegate.checkboxSpaltenBreite
             Layout.preferredHeight: aufgabenDelegate.zeilenHoehe - (aufgabenDelegate.padding * 2)
             Layout.alignment: Qt.AlignVCenter
             onToggled: aufgabenDelegate.erledigtGewechselt(checked)
+
+            indicator: Rectangle {
+                implicitWidth: Kirigami.Units.gridUnit * 0.58
+                implicitHeight: Kirigami.Units.gridUnit * 0.58
+                x: (erledigtCheck.width - width) / 2
+                y: (erledigtCheck.height - height) / 2
+                radius: 3
+                color: Qt.rgba(1, 1, 1, erledigtCheck.hovered ? 0.08 : 0.04)
+                border.width: 1
+                border.color: Qt.rgba(1, 1, 1, erledigtCheck.hovered ? 0.18 : 0.1)
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "✓"
+                    visible: erledigtCheck.checked
+                    color: Kirigami.Theme.textColor
+                    font.pixelSize: Kirigami.Units.gridUnit * 0.46
+                    font.bold: true
+                }
+            }
+
+            contentItem: Item {}
         }
 
         Rectangle {
@@ -178,21 +201,29 @@ QtControls.ItemDelegate {
             id: loeschenButton
             text: "✕"
             font.pixelSize: Kirigami.Units.gridUnit * 0.7
-            font.bold: true
+            font.bold: false
             Layout.preferredHeight: Kirigami.Units.gridUnit * 0.78
             Layout.preferredWidth: Kirigami.Units.gridUnit * 0.78
             Layout.maximumWidth: Kirigami.Units.gridUnit * 0.78
             Layout.alignment: Qt.AlignVCenter
+            opacity: loeschenButton.hovered ? 1.0 : 0.72
             
             background: Rectangle {
                 radius: 3
-                color: loeschenButton.hovered ? "#ff5555" : "#cc3333"
-                border.width: 0
+                color: loeschenButton.hovered
+                    ? Qt.rgba(0.84, 0.2, 0.2, 0.28)
+                    : Qt.rgba(1, 1, 1, 0.04)
+                border.width: 1
+                border.color: loeschenButton.hovered
+                    ? Qt.rgba(0.92, 0.26, 0.26, 0.7)
+                    : Qt.rgba(1, 1, 1, 0.1)
             }
             
             contentItem: Text {
                 text: loeschenButton.text
-                color: "white"
+                color: loeschenButton.hovered
+                    ? Kirigami.Theme.negativeTextColor
+                    : Kirigami.Theme.disabledTextColor
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 font: loeschenButton.font
