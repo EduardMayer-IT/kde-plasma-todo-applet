@@ -5,7 +5,7 @@
  * Copyright (c) [Jahr] [Dein Name]
  */
 
-function erzeugeAufgabe(beschreibung, prioritaet, faelligkeit) {
+function erzeugeAufgabe(beschreibung, prioritaet, faelligkeit, notiz) {
     const bereinigteBeschreibung = (beschreibung || "").trim();
     if (!bereinigteBeschreibung) {
         return null;
@@ -15,6 +15,7 @@ function erzeugeAufgabe(beschreibung, prioritaet, faelligkeit) {
         beschreibung: bereinigteBeschreibung,
         prioritaet: istGueltigePrioritaet(prioritaet) ? prioritaet : 0,
         faelligkeit: faelligkeit || "",
+        notiz: typeof notiz === "string" ? notiz.trim() : "",
         erledigt: false
     };
 }
@@ -53,6 +54,7 @@ function normalisiereAufgabe(eintrag) {
         beschreibung: beschreibung,
         prioritaet: istGueltigePrioritaet(eintrag.prioritaet) ? eintrag.prioritaet : 0,
         faelligkeit: typeof eintrag.faelligkeit === "string" ? eintrag.faelligkeit : "",
+        notiz: typeof eintrag.notiz === "string" ? eintrag.notiz.trim() : "",
         erledigt: !!eintrag.erledigt
     };
 }

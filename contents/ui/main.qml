@@ -20,8 +20,10 @@ PlasmoidItem {
     function aufgabeAusEingabeHinzufuegen() {
         const text = neueAufgabeEingabe.text.trim();
         if (text.length === 0) return;
-        aufgabenModell.aufgabeHinzufuegen(text, neueAufgabePrioritaet, "");
+        const notiz = neueNotizEingabe.text.trim();
+        aufgabenModell.aufgabeHinzufuegen(text, neueAufgabePrioritaet, "", notiz);
         neueAufgabeEingabe.text = "";
+        neueNotizEingabe.text = "";
         neueAufgabePrioritaet = 0;
     }
 
@@ -102,6 +104,10 @@ PlasmoidItem {
 
                     onBeschreibungGewechselt: function(neueBeschreibung) {
                         aufgabenModell.beschreibungSetzen(index, neueBeschreibung);
+                    }
+
+                    onNotizGewechselt: function(neueNotiz) {
+                        aufgabenModell.notizSetzen(index, neueNotiz);
                     }
 
                     onVerschoben: function(vonIndex, nachIndex) {
@@ -200,6 +206,21 @@ PlasmoidItem {
                     visible: hinzufuegenButton.hovered
                 }
             }
+        }
+
+        QtControls.TextArea {
+            id: neueNotizEingabe
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.min(
+                Kirigami.Units.gridUnit * 2.4,
+                Math.max(Kirigami.Units.gridUnit * 0.95, contentHeight + (padding * 2))
+            )
+            font.pixelSize: Kirigami.Units.gridUnit * 0.58
+            padding: Kirigami.Units.smallSpacing * 0.38
+            wrapMode: Text.Wrap
+            // qmllint disable unqualified
+            placeholderText: i18n("Untertext/Notiz (optional)...")
+            // qmllint enable unqualified
         }
     }
 

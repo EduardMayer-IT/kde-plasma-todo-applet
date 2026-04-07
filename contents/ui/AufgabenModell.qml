@@ -14,8 +14,8 @@ ListModel {
 
     signal persistRequested(string json)
 
-    function aufgabeHinzufuegen(beschreibung, prioritaet, faelligkeit) {
-        const neueAufgabe = AufgabenLogik.erzeugeAufgabe(beschreibung, prioritaet, faelligkeit);
+    function aufgabeHinzufuegen(beschreibung, prioritaet, faelligkeit, notiz) {
+        const neueAufgabe = AufgabenLogik.erzeugeAufgabe(beschreibung, prioritaet, faelligkeit, notiz);
         if (!neueAufgabe) {
             return;
         }
@@ -66,6 +66,20 @@ ListModel {
         }
 
         setProperty(index, "beschreibung", bereinigt);
+        persistiere();
+    }
+
+    function notizSetzen(index, notiz) {
+        if (!istGueltigerIndex(index)) {
+            return;
+        }
+
+        const bereinigt = (notiz || "").trim();
+        if (get(index).notiz === bereinigt) {
+            return;
+        }
+
+        setProperty(index, "notiz", bereinigt);
         persistiere();
     }
 

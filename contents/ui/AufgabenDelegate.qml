@@ -13,16 +13,19 @@ QtControls.ItemDelegate {
 
     required property int index
     required property string beschreibung
+    required property string notiz
     required property int prioritaet
     required property string faelligkeit
     required property bool erledigt
     property bool bearbeitungsModus: false
     property string bearbeitungsText: ""
+    property string bearbeitungsNotizText: ""
     property int letzterZielIndex: -1
 
     signal erledigtGewechselt(bool istErledigt)
     signal prioritaetGewechselt(int neuePrioritaet)
     signal beschreibungGewechselt(string neueBeschreibung)
+    signal notizGewechselt(string neueNotiz)
     signal loeschenAngefragt()
     signal verschoben(int vonIndex, int nachIndex)
     signal verschiebenBeendet()
@@ -39,6 +42,7 @@ QtControls.ItemDelegate {
 
     function bearbeitungStarten() {
         bearbeitungsText = beschreibung;
+        bearbeitungsNotizText = notiz;
         bearbeitungsModus = true;
     }
 
@@ -47,11 +51,17 @@ QtControls.ItemDelegate {
         if (bereinigt.length > 0 && bereinigt !== beschreibung) {
             beschreibungGewechselt(bereinigt);
         }
+
+        const notizBereinigt = bearbeitungsNotizText.trim();
+        if (notizBereinigt !== notiz) {
+            notizGewechselt(notizBereinigt);
+        }
         bearbeitungsModus = false;
     }
 
     function bearbeitungAbbrechen() {
         bearbeitungsText = beschreibung;
+        bearbeitungsNotizText = notiz;
         bearbeitungsModus = false;
     }
 
@@ -238,6 +248,53 @@ QtControls.ItemDelegate {
                 onTextChanged: aufgabenDelegate.bearbeitungsText = text
                 onActiveFocusChanged: {
                     if (!activeFocus && aufgabenDelegate.bearbeitungsModus) {
+                        aufgabenDelegate.bearbeitungSpeichern();
+                    }
+                }
+
+                Keys.onPressed: function(event) {
+                    if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+                            && (event.modifiers & Qt.ControlModifier)) {
+                        event.accepted = true;
+                        aufgabenDelegate.bearbeitungSpeichern();
+                    }
+                }
+
+                Keys.onEscapePressed: function(event) {
+                    event.accepted = true;
+                    aufgabenDelegate.bearbeitungAbbrechen();
+                }
+            }
+
+            QtControls.Label {
+                Layout.fillWidth: true
+                visible: !aufgabenDelegate.bearbeitungsModus && aufgabenDelegate.notiz.length > 0
+                text: aufgabenDelegate.notiz
+                font.pixelSize: Kirigami.Units.gridUnit * 0.56
+                wrapMode: Text.Wrap
+                color: Kirigami.Theme.disabledTextColor
+                opacity: aufgabenDelegate.erledigt ? 0.6 : 1.0
+            }
+
+            QtControls.TextArea {
+                id: notizBearbeitungsEingabe
+                Layout.fillWidth: true
+                visible: aufgabenDelegate.bearbeitungsModus
+                text: aufgabenDelegate.bearbeitungsNotizText
+                font.pixelSize: Kirigami.Units.gridUnit * 0.56
+                selectByMouse: true
+                wrapMode: Text.Wrap
+                padding: Kirigami.Units.smallSpacing * 0.3
+                // qmllint disable unqualified
+                placeholderText: i18n("Untertext (optional)")
+                // qmllint enable unqualified
+                Layout.preferredHeight: Math.min(
+                    Kirigami.Units.gridUnit * 2.5,
+                    Math.max(Kirigami.Units.gridUnit * 1.0, contentHeight + (padding * 2))
+                )
+                onTextChanged: aufgabenDelegate.bearbeitungsNotizText = text
+                onActiveFocusChanged: {
+                    if (!activeFocus && !bearbeitungsEingabe.activeFocus && aufgabenDelegate.bearbeitungsModus) {
                         aufgabenDelegate.bearbeitungSpeichern();
                     }
                 }
