@@ -262,6 +262,10 @@ QtControls.ItemDelegate {
                 }
 
                 onPositionChanged: function(mouse) {
+                    // CRITICAL: Only the delegate that was originally pressed handles movement
+                    if (aufgabenDelegate.dragStartIndex !== aufgabenDelegate.index) {
+                        return;
+                    }
                     if (!dragMausflaeche.pressed) return;
                     const listView = aufgabenDelegate.ListView.view;
                     if (!listView) return;
