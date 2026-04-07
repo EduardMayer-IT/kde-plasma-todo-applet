@@ -132,10 +132,12 @@ QtControls.ItemDelegate {
             : (aufgabenDelegate.hovered
             ? Kirigami.Theme.hoverColor
             : Kirigami.Theme.backgroundColor)
-        border.width: 1
-        border.color: aufgabenDelegate.dropAktiv
+        border.width: aufgabenDelegate.unterzeilenModusAktiv ? 2 : 1
+        border.color: aufgabenDelegate.unterzeilenModusAktiv
             ? Kirigami.Theme.highlightColor
-            : Qt.rgba(1, 1, 1, 0.12)
+            : (aufgabenDelegate.dropAktiv
+            ? Kirigami.Theme.highlightColor
+            : Qt.rgba(1, 1, 1, 0.12))
 
         Rectangle {
             anchors.fill: parent
@@ -217,14 +219,17 @@ QtControls.ItemDelegate {
                     if (listView) {
                         const pos = dragMausflaeche.mapToItem(listView, mouseX, mouseY);
                         aufgabenDelegate.dragStartXInList = pos.x;
+                        console.log("Drag START at X=" + pos.x + " (threshold=" + aufgabenDelegate.unterzeilenHorizontalSchwelle + "px)");
                     }
                     aufgabenDelegate.unterzeilenModusAktiv = false;
                     aufgabenDelegate.unterzeilenZielIndex = -1;
                 }
 
                 onReleased: {
+                    console.log("Drag ENDED - subenty mode: " + aufgabenDelegate.unterzeilenModusAktiv + ", target index: " + aufgabenDelegate.unterzeilenZielIndex);
                     if (aufgabenDelegate.unterzeilenModusAktiv && aufgabenDelegate.unterzeilenZielIndex >= 0
                             && aufgabenDelegate.unterzeilenZielIndex !== aufgabenDelegate.index) {
+                        console.log("Converting entry " + aufgabenDelegate.index + " to subentry under " + aufgabenDelegate.unterzeilenZielIndex);
                         aufgabenDelegate.alsUnterzeileVerschiebenAngefragt(
                             aufgabenDelegate.index,
                             aufgabenDelegate.unterzeilenZielIndex
@@ -250,6 +255,11 @@ QtControls.ItemDelegate {
                     }
 
                     targetIdx = Math.max(0, Math.min(listView.count - 1, targetIdx));
+
+                    // DEBUG: Log first few position changes to see offset values
+                    if (horizontalerVersatz > -2 && horizontalerVersatz < 40) {
+                        console.log("Drag offset: " + horizontalerVersatz + "px, threshold: " + aufgabenDelegate.unterzeilenHorizontalSchwelle + "px, mode: " + (horizontalerVersatz > aufgabenDelegate.unterzeilenHorizontalSchwelle));
+                    }
 
                     aufgabenDelegate.unterzeilenModusAktiv = horizontalerVersatz > aufgabenDelegate.unterzeilenHorizontalSchwelle;
                     aufgabenDelegate.unterzeilenZielIndex = targetIdx;
