@@ -21,6 +21,7 @@ QtControls.ItemDelegate {
     property string bearbeitungsText: ""
     property string bearbeitungsNotizText: ""
     property int letzterZielIndex: -1
+    property bool dropAktiv: false
 
     signal erledigtGewechselt(bool istErledigt)
     signal prioritaetGewechselt(int neuePrioritaet)
@@ -74,16 +75,44 @@ QtControls.ItemDelegate {
             ? Kirigami.Theme.hoverColor
             : Kirigami.Theme.backgroundColor
         border.width: 1
-        border.color: dropZone.containsDrag
+        border.color: aufgabenDelegate.dropAktiv
             ? Kirigami.Theme.highlightColor
             : Qt.rgba(1, 1, 1, 0.12)
+
+        Rectangle {
+            anchors.fill: parent
+            radius: parent.radius
+            visible: aufgabenDelegate.dropAktiv
+            color: Qt.rgba(
+                Kirigami.Theme.highlightColor.r,
+                Kirigami.Theme.highlightColor.g,
+                Kirigami.Theme.highlightColor.b,
+                0.16
+            )
+            border.width: 1
+            border.color: Qt.rgba(
+                Kirigami.Theme.highlightColor.r,
+                Kirigami.Theme.highlightColor.g,
+                Kirigami.Theme.highlightColor.b,
+                0.45
+            )
+        }
 
         DropArea {
             id: dropZone
             anchors.fill: parent
 
+            onEntered: {
+                aufgabenDelegate.dropAktiv = true;
+            }
+
+            onExited: {
+                aufgabenDelegate.dropAktiv = false;
+            }
+
             onDropped: function(drop) {
                 const text = (drop.text || "").trim();
+                aufgabenDelegate.dropAktiv = false;
                 if (!text) return;
                 aufgabenDelegate.untertextGedroppt(text);
                 drop.acceptProposedAction();
@@ -286,22 +315,39 @@ QtControls.ItemDelegate {
             RowLayout {
                 Layout.fillWidth: true
                 visible: !aufgabenDelegate.bearbeitungsModus && aufgabenDelegate.notiz.length > 0
-                spacing: Kirigami.Units.smallSpacing * 0.55
+                spacing: Kirigami.Units.smallSpacing * 0.75
+                Layout.leftMargin: Kirigami.Units.smallSpacing * 1.4
+                Layout.rightMargin: Kirigami.Units.smallSpacing * 0.25
 
                 Rectangle {
-                    width: 2
-                    Layout.fillHeight: true
-                    radius: 1
-                    color: Qt.rgba(1, 1, 1, 0.22)
-                }
-
-                QtControls.Label {
                     Layout.fillWidth: true
-                    text: aufgabenDelegate.notiz
-                    font.pixelSize: Kirigami.Units.gridUnit * 0.56
-                    wrapMode: Text.Wrap
-                    color: Kirigami.Theme.disabledTextColor
-                    opacity: aufgabenDelegate.erledigt ? 0.6 : 1.0
+                    Layout.fillHeight: true
+                    radius: 3
+                    color: Qt.rgba(1, 1, 1, 0.03)
+                    border.width: 1
+                    border.color: Qt.rgba(1, 1, 1, 0.08)
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: Kirigami.Units.smallSpacing * 0.42
+                        spacing: Kirigami.Units.smallSpacing * 0.72
+
+                        Rectangle {
+                            width: 3
+                            Layout.fillHeight: true
+                            radius: 1
+                            color: Qt.rgba(1, 1, 1, 0.34)
+                        }
+
+                        QtControls.Label {
+                            Layout.fillWidth: true
+                            text: aufgabenDelegate.notiz
+                            font.pixelSize: Kirigami.Units.gridUnit * 0.56
+                            wrapMode: Text.Wrap
+                            color: Kirigami.Theme.disabledTextColor
+                            opacity: aufgabenDelegate.erledigt ? 0.6 : 1.0
+                        }
+                    }
                 }
             }
 
