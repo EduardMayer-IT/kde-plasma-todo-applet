@@ -264,33 +264,42 @@ QtControls.ItemDelegate {
                     const listView = aufgabenDelegate.ListView.view;
                     if (!listView) return;
 
+                    // Horizontal delta via global coords (no coordinate-system drift)
                     const currentScreenX = dragMausflaeche.mapToGlobal(mouse.x, mouse.y).x;
                     const horizontalerVersatz = currentScreenX - aufgabenDelegate.dragStartScreenX;
 
-                    // Sticky: once right-drag is detected, stay in subentry mode until release
+                    // Sticky subentry mode: once triggered, stays ON until release
                     if (horizontalerVersatz > aufgabenDelegate.unterzeilenHorizontalSchwelle) {
                         aufgabenDelegate.unterzeilenModusAktiv = true;
                     }
 
-                    const posInList = dragMausflaeche.mapToItem(listView, mouse.x, mouse.y);
-                    const yInContent = listView.contentY + posInList.y;
-                    let targetIdx = listView.indexAt(listView.width * 0.5, yInContent);
-
+                    // Target: delegate.y is already in content coords → no contentY offset needed
+                    const mouseRelDelegate = dragMausflaeche.mapToItem(aufgabenDelegate, mouse.x, mouse.y);
+                    const mouseYInContent = aufgabenDelegate.y + mouseRelDelegate.y;
+                    let targetIdx = listView.indexAt(0, mouseYInContent);
                     if (targetIdx < 0) {
-                        targetIdx = yInContent < 0 ? 0 : listView.count - 1;
+                        targetIdx = mouseYInContent < 0 ? 0 : (listView.count - 1);
                     }
                     targetIdx = Math.max(0, Math.min(listView.count - 1, targetIdx));
 
+                    // Always keep target index current (needed for correct release handling)
                     aufgabenDelegate.unterzeilenZielIndex = targetIdx;
 
+                    // In subentry mode: only track target, never reorder
                     if (aufgabenDelegate.unterzeilenModusAktiv) {
                         return;
                     }
 
-                    if (targetIdx === aufgabenDelegate.index || targetIdx === aufgabenDelegate.letzterZielIndex) {
+                    // Pre-subentry guard: any rightward movement blocks reorder
+                    // (prevents item jumping before 25px which would corrupt index)
+                    if (horizontalerVersatz > 3) {
                         return;
                     }
 
+                    // Normal vertical reorder
+                    if (targetIdx === aufgabenDelegate.index || targetIdx === aufgabenDelegate.letzterZielIndex) {
+                        return;
+                    }
                     aufgabenDelegate.letzterZielIndex = targetIdx;
                     aufgabenDelegate.verschoben(aufgabenDelegate.index, targetIdx);
                 }
