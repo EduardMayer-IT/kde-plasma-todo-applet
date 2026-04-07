@@ -25,6 +25,7 @@ QtControls.ItemDelegate {
     signal beschreibungGewechselt(string neueBeschreibung)
     signal loeschenAngefragt()
     signal verschoben(int vonIndex, int nachIndex)
+    signal verschiebenBeendet()
 
     readonly property real zeilenHoehe: Kirigami.Units.gridUnit * 0.9
     readonly property real loeschenSpaltenBreite: Kirigami.Units.gridUnit * 4.8
@@ -104,6 +105,7 @@ QtControls.ItemDelegate {
 
                 onReleased: {
                     aufgabenDelegate.letzterZielIndex = -1;
+                    aufgabenDelegate.verschiebenBeendet();
                 }
 
                 onPositionChanged: function(mouse) {

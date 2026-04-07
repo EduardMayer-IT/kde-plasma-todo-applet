@@ -105,7 +105,11 @@ PlasmoidItem {
                     }
 
                     onVerschoben: function(vonIndex, nachIndex) {
-                        aufgabenModell.verschieben(vonIndex, nachIndex);
+                        aufgabenModell.verschieben(vonIndex, nachIndex, false);
+                    }
+
+                    onVerschiebenBeendet: {
+                        aufgabenModell.persistiere();
                     }
 
                     onLoeschenAngefragt: {
