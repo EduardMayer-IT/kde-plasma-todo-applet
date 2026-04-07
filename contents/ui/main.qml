@@ -104,12 +104,20 @@ PlasmoidItem {
                         aufgabenModell.beschreibungSetzen(index, neueBeschreibung);
                     }
 
-                    onNotizGewechselt: function(neueNotiz) {
-                        aufgabenModell.notizSetzen(index, neueNotiz);
+                    onUntertextGedroppt: function(untertext) {
+                        aufgabenModell.untereintragHinzufuegen(index, untertext, 0, false);
                     }
 
-                    onUntertextGedroppt: function(untertext) {
-                        aufgabenModell.notizAnhaengen(index, untertext);
+                    onUnterBeschreibungGewechselt: function(unterIndex, neuerText) {
+                        aufgabenModell.untereintragBeschreibungSetzen(index, unterIndex, neuerText);
+                    }
+
+                    onUnterPrioritaetGewechselt: function(unterIndex, neuePrioritaet) {
+                        aufgabenModell.untereintragPrioritaetSetzen(index, unterIndex, neuePrioritaet);
+                    }
+
+                    onUnterErledigtGewechselt: function(unterIndex, istErledigt) {
+                        aufgabenModell.untereintragErledigtSetzen(index, unterIndex, istErledigt);
                     }
 
                     onAlsUnterzeileVerschiebenAngefragt: function(quellIndex, zielIndex) {

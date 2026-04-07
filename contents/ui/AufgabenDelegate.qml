@@ -3,6 +3,8 @@ import QtQuick.Controls as QtControls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
+pragma ComponentBehavior: Bound
+
 /*
  * Dieses Projekt steht unter der MIT-Lizenz.
  * Copyright (c) [Jahr] [Dein Name]
@@ -13,13 +15,14 @@ QtControls.ItemDelegate {
 
     required property int index
     required property string beschreibung
-    required property string notiz
+    required property var untereintraege
     required property int prioritaet
     required property string faelligkeit
     required property bool erledigt
     property bool bearbeitungsModus: false
     property string bearbeitungsText: ""
-    property string bearbeitungsNotizText: ""
+    property int bearbeiteterUntereintragIndex: -1
+    property string bearbeiteterUntereintragText: ""
     property int letzterZielIndex: -1
     property bool dropAktiv: false
     property bool unterzeilenModusAktiv: false
@@ -29,8 +32,10 @@ QtControls.ItemDelegate {
     signal erledigtGewechselt(bool istErledigt)
     signal prioritaetGewechselt(int neuePrioritaet)
     signal beschreibungGewechselt(string neueBeschreibung)
-    signal notizGewechselt(string neueNotiz)
     signal untertextGedroppt(string untertext)
+    signal unterBeschreibungGewechselt(int unterIndex, string neuerText)
+    signal unterPrioritaetGewechselt(int unterIndex, int neuePrioritaet)
+    signal unterErledigtGewechselt(int unterIndex, bool istErledigt)
     signal alsUnterzeileVerschiebenAngefragt(int quellIndex, int zielIndex)
     signal loeschenAngefragt()
     signal verschoben(int vonIndex, int nachIndex)
@@ -48,8 +53,8 @@ QtControls.ItemDelegate {
 
     function bearbeitungStarten() {
         bearbeitungsText = beschreibung;
-        bearbeitungsNotizText = notiz;
         bearbeitungsModus = true;
+        bearbeiteterUntereintragIndex = -1;
     }
 
     function bearbeitungSpeichern() {
@@ -57,18 +62,36 @@ QtControls.ItemDelegate {
         if (bereinigt.length > 0 && bereinigt !== beschreibung) {
             beschreibungGewechselt(bereinigt);
         }
-
-        const notizBereinigt = bearbeitungsNotizText.trim();
-        if (notizBereinigt !== notiz) {
-            notizGewechselt(notizBereinigt);
-        }
         bearbeitungsModus = false;
     }
 
     function bearbeitungAbbrechen() {
         bearbeitungsText = beschreibung;
-        bearbeitungsNotizText = notiz;
         bearbeitungsModus = false;
+    }
+
+    function untereintragBearbeitungStarten(unterIndex, text) {
+        bearbeiteterUntereintragIndex = unterIndex;
+        bearbeiteterUntereintragText = text;
+    }
+
+    function untereintragBearbeitungSpeichern() {
+        if (bearbeiteterUntereintragIndex < 0) {
+            return;
+        }
+
+        const bereinigt = bearbeiteterUntereintragText.trim();
+        if (bereinigt.length > 0) {
+            unterBeschreibungGewechselt(bearbeiteterUntereintragIndex, bereinigt);
+        }
+
+        bearbeiteterUntereintragIndex = -1;
+        bearbeiteterUntereintragText = "";
+    }
+
+    function untereintragBearbeitungAbbrechen() {
+        bearbeiteterUntereintragIndex = -1;
+        bearbeiteterUntereintragText = "";
     }
 
     function textAusDrop(drop) {
@@ -370,80 +393,117 @@ QtControls.ItemDelegate {
                 }
             }
 
-            RowLayout {
+            Item {
                 Layout.fillWidth: true
-                visible: !aufgabenDelegate.bearbeitungsModus && aufgabenDelegate.notiz.length > 0
-                spacing: Kirigami.Units.smallSpacing * 0.75
-                Layout.leftMargin: Kirigami.Units.smallSpacing * 1.4
-                Layout.rightMargin: Kirigami.Units.smallSpacing * 0.25
+                visible: !aufgabenDelegate.bearbeitungsModus
+                         && Array.isArray(aufgabenDelegate.untereintraege)
+                         && aufgabenDelegate.untereintraege.length > 0
+                implicitHeight: untereintraegeSpalte.implicitHeight
 
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    radius: 3
-                    color: Qt.rgba(1, 1, 1, 0.03)
-                    border.width: 1
-                    border.color: Qt.rgba(1, 1, 1, 0.08)
+                ColumnLayout {
+                    id: untereintraegeSpalte
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    spacing: Kirigami.Units.smallSpacing * 0.34
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: Kirigami.Units.smallSpacing * 0.42
-                        spacing: Kirigami.Units.smallSpacing * 0.72
+                    Repeater {
+                        model: aufgabenDelegate.untereintraege
 
-                        Rectangle {
-                            width: 3
-                            Layout.fillHeight: true
-                            radius: 1
-                            color: Qt.rgba(1, 1, 1, 0.34)
-                        }
+                        delegate: RowLayout {
+                            id: untereintragZeile
+                            required property int index
+                            required property var modelData
 
-                        QtControls.Label {
+                            readonly property string unterText: (modelData && modelData.beschreibung) ? modelData.beschreibung : ""
+                            readonly property int unterPrioritaet: (modelData && modelData.prioritaet !== undefined) ? modelData.prioritaet : 0
+                            readonly property bool unterErledigt: !!(modelData && modelData.erledigt)
+
                             Layout.fillWidth: true
-                            text: aufgabenDelegate.notiz
-                            font.pixelSize: Kirigami.Units.gridUnit * 0.56
-                            wrapMode: Text.Wrap
-                            color: Kirigami.Theme.disabledTextColor
-                            opacity: aufgabenDelegate.erledigt ? 0.6 : 1.0
+                            spacing: Kirigami.Units.smallSpacing * 0.55
+                            Layout.leftMargin: Kirigami.Units.smallSpacing * 1.45
+
+                            Rectangle {
+                                width: 3
+                                Layout.fillHeight: true
+                                radius: 1
+                                color: Qt.rgba(1, 1, 1, 0.34)
+                            }
+
+                            QtControls.CheckBox {
+                                checked: parent.unterErledigt
+                                hoverEnabled: true
+                                Layout.alignment: Qt.AlignTop
+                                onToggled: aufgabenDelegate.unterErledigtGewechselt(untereintragZeile.index, checked)
+                            }
+
+                            Rectangle {
+                                Layout.preferredWidth: Kirigami.Units.gridUnit * 0.26
+                                Layout.maximumWidth: Kirigami.Units.gridUnit * 0.26
+                                Layout.fillHeight: true
+                                radius: 2
+                                color: aufgabenDelegate.prioritaetFarbe(parent.unterPrioritaet)
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        const naechstePrioritaet = (untereintragZeile.unterPrioritaet + 1) % 3;
+                                        aufgabenDelegate.unterPrioritaetGewechselt(untereintragZeile.index, naechstePrioritaet);
+                                    }
+                                }
+                            }
+
+                            QtControls.Label {
+                                Layout.fillWidth: true
+                                visible: aufgabenDelegate.bearbeiteterUntereintragIndex !== parent.index
+                                text: parent.unterText
+                                wrapMode: Text.Wrap
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.56
+                                font.strikeout: parent.unterErledigt
+                                opacity: parent.unterErledigt ? 0.62 : 1.0
+                                color: Kirigami.Theme.disabledTextColor
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.IBeamCursor
+                                    onClicked: {
+                                        aufgabenDelegate.untereintragBearbeitungStarten(untereintragZeile.index, untereintragZeile.unterText);
+                                        untereintragEingabe.forceActiveFocus();
+                                        untereintragEingabe.selectAll();
+                                    }
+                                }
+                            }
+
+                            QtControls.TextArea {
+                                id: untereintragEingabe
+                                Layout.fillWidth: true
+                                visible: aufgabenDelegate.bearbeiteterUntereintragIndex === parent.index
+                                text: aufgabenDelegate.bearbeiteterUntereintragText
+                                wrapMode: Text.Wrap
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.56
+                                padding: Kirigami.Units.smallSpacing * 0.25
+                                onTextChanged: aufgabenDelegate.bearbeiteterUntereintragText = text
+                                onActiveFocusChanged: {
+                                    if (!activeFocus && aufgabenDelegate.bearbeiteterUntereintragIndex === parent.index) {
+                                        aufgabenDelegate.untereintragBearbeitungSpeichern();
+                                    }
+                                }
+
+                                Keys.onPressed: function(event) {
+                                    if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+                                            && (event.modifiers & Qt.ControlModifier)) {
+                                        event.accepted = true;
+                                        aufgabenDelegate.untereintragBearbeitungSpeichern();
+                                    }
+                                }
+
+                                Keys.onEscapePressed: function(event) {
+                                    event.accepted = true;
+                                    aufgabenDelegate.untereintragBearbeitungAbbrechen();
+                                }
+                            }
                         }
                     }
-                }
-            }
-
-            QtControls.TextArea {
-                id: notizBearbeitungsEingabe
-                Layout.fillWidth: true
-                Layout.leftMargin: Kirigami.Units.smallSpacing * 2.2
-                visible: aufgabenDelegate.bearbeitungsModus
-                text: aufgabenDelegate.bearbeitungsNotizText
-                font.pixelSize: Kirigami.Units.gridUnit * 0.56
-                selectByMouse: true
-                wrapMode: Text.Wrap
-                padding: Kirigami.Units.smallSpacing * 0.3
-                // qmllint disable unqualified
-                placeholderText: i18n("Untertext (optional)")
-                // qmllint enable unqualified
-                Layout.preferredHeight: Math.min(
-                    Kirigami.Units.gridUnit * 2.5,
-                    Math.max(Kirigami.Units.gridUnit * 1.0, contentHeight + (padding * 2))
-                )
-                onTextChanged: aufgabenDelegate.bearbeitungsNotizText = text
-                onActiveFocusChanged: {
-                    if (!activeFocus && !bearbeitungsEingabe.activeFocus && aufgabenDelegate.bearbeitungsModus) {
-                        aufgabenDelegate.bearbeitungSpeichern();
-                    }
-                }
-
-                Keys.onPressed: function(event) {
-                    if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
-                            && (event.modifiers & Qt.ControlModifier)) {
-                        event.accepted = true;
-                        aufgabenDelegate.bearbeitungSpeichern();
-                    }
-                }
-
-                Keys.onEscapePressed: function(event) {
-                    event.accepted = true;
-                    aufgabenDelegate.bearbeitungAbbrechen();
                 }
             }
 

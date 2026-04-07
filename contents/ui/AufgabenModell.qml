@@ -69,33 +69,66 @@ ListModel {
         persistiere();
     }
 
-    function notizSetzen(index, notiz) {
+    function untereintragHinzufuegen(index, beschreibung, prioritaet, erledigt) {
         if (!istGueltigerIndex(index)) {
             return;
         }
 
-        const bereinigt = (notiz || "").trim();
-        if (get(index).notiz === bereinigt) {
-            return;
-        }
-
-        setProperty(index, "notiz", bereinigt);
-        persistiere();
-    }
-
-    function notizAnhaengen(index, text) {
-        if (!istGueltigerIndex(index)) {
-            return;
-        }
-
-        const bereinigt = (text || "").trim();
+        const bereinigt = (beschreibung || "").trim();
         if (!bereinigt) {
             return;
         }
 
-        const aktuelleNotiz = (get(index).notiz || "").trim();
-        const neueNotiz = aktuelleNotiz.length > 0 ? (aktuelleNotiz + "\n" + bereinigt) : bereinigt;
-        setProperty(index, "notiz", neueNotiz);
+        const liste = klonUntereintraege(index);
+        liste.push({
+            beschreibung: bereinigt,
+            prioritaet: AufgabenLogik.istGueltigePrioritaet(prioritaet) ? prioritaet : 0,
+            erledigt: !!erledigt
+        });
+
+        setProperty(index, "untereintraege", liste);
+        persistiere();
+    }
+
+    function untereintragBeschreibungSetzen(index, unterIndex, beschreibung) {
+        if (!istGueltigerUntereintragIndex(index, unterIndex)) {
+            return;
+        }
+
+        const bereinigt = (beschreibung || "").trim();
+        if (!bereinigt) {
+            return;
+        }
+
+        const liste = klonUntereintraege(index);
+        if ((liste[unterIndex].beschreibung || "") === bereinigt) {
+            return;
+        }
+
+        liste[unterIndex].beschreibung = bereinigt;
+        setProperty(index, "untereintraege", liste);
+        persistiere();
+    }
+
+    function untereintragPrioritaetSetzen(index, unterIndex, prioritaet) {
+        if (!istGueltigerUntereintragIndex(index, unterIndex) || !AufgabenLogik.istGueltigePrioritaet(prioritaet)) {
+            return;
+        }
+
+        const liste = klonUntereintraege(index);
+        liste[unterIndex].prioritaet = prioritaet;
+        setProperty(index, "untereintraege", liste);
+        persistiere();
+    }
+
+    function untereintragErledigtSetzen(index, unterIndex, erledigt) {
+        if (!istGueltigerUntereintragIndex(index, unterIndex)) {
+            return;
+        }
+
+        const liste = klonUntereintraege(index);
+        liste[unterIndex].erledigt = !!erledigt;
+        setProperty(index, "untereintraege", liste);
         persistiere();
     }
 
@@ -105,20 +138,34 @@ ListModel {
         }
 
         const quelle = get(quellIndex);
-        const ziel = get(zielIndex);
-
         const quellBeschreibung = (quelle.beschreibung || "").trim();
-        const quellNotiz = (quelle.notiz || "").trim();
-        const quellBlock = quellNotiz.length > 0 ? (quellBeschreibung + "\n" + quellNotiz) : quellBeschreibung;
-
-        if (!quellBlock) {
+        if (!quellBeschreibung) {
             return;
         }
 
-        const zielNotiz = (ziel.notiz || "").trim();
-        const neueNotiz = zielNotiz.length > 0 ? (zielNotiz + "\n" + quellBlock) : quellBlock;
+        const zielUntereintraege = klonUntereintraege(zielIndex);
+        zielUntereintraege.push({
+            beschreibung: quellBeschreibung,
+            prioritaet: AufgabenLogik.istGueltigePrioritaet(quelle.prioritaet) ? quelle.prioritaet : 0,
+            erledigt: !!quelle.erledigt
+        });
 
-        setProperty(zielIndex, "notiz", neueNotiz);
+        const quellenUnter = Array.isArray(quelle.untereintraege) ? quelle.untereintraege : [];
+        for (let i = 0; i < quellenUnter.length; ++i) {
+            const unter = quellenUnter[i];
+            const text = (unter && unter.beschreibung ? unter.beschreibung : "").trim();
+            if (!text) {
+                continue;
+            }
+
+            zielUntereintraege.push({
+                beschreibung: text,
+                prioritaet: AufgabenLogik.istGueltigePrioritaet(unter.prioritaet) ? unter.prioritaet : 0,
+                erledigt: !!unter.erledigt
+            });
+        }
+
+        setProperty(zielIndex, "untereintraege", zielUntereintraege);
         remove(quellIndex, 1);
         persistiere();
     }
@@ -176,6 +223,34 @@ ListModel {
 
     function istGueltigerIndex(index) {
         return index >= 0 && index < count;
+    }
+
+    function klonUntereintraege(index) {
+        const quelle = get(index).untereintraege;
+        if (!Array.isArray(quelle)) {
+            return [];
+        }
+
+        const kopie = [];
+        for (let i = 0; i < quelle.length; ++i) {
+            const eintrag = quelle[i] || {};
+            kopie.push({
+                beschreibung: (eintrag.beschreibung || "").trim(),
+                prioritaet: AufgabenLogik.istGueltigePrioritaet(eintrag.prioritaet) ? eintrag.prioritaet : 0,
+                erledigt: !!eintrag.erledigt
+            });
+        }
+
+        return kopie;
+    }
+
+    function istGueltigerUntereintragIndex(index, unterIndex) {
+        if (!istGueltigerIndex(index) || unterIndex < 0) {
+            return false;
+        }
+
+        const liste = get(index).untereintraege;
+        return Array.isArray(liste) && unterIndex < liste.length;
     }
 
     Component.onCompleted: ausJsonLaden(tasksJson)
