@@ -1,0 +1,9 @@
+[Global]
+IconName=view-task
+Name=Aufgabenliste
+
+[Event/faelligkeit]
+Name=Fälligkeit
+Comment=Erinnerung an fällige Aufgaben
+Action=Popup
+Urgency=Normal

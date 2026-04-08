@@ -21,6 +21,7 @@ QtControls.ItemDelegate {
     required property bool erledigt
     property var dragController: null
     property bool bearbeitungsModus: false
+    property int filterModus: 0   // 0=alle, 1=offen, 2=erledigt
     property string bearbeitungsText: ""
     property int bearbeiteterUntereintragIndex: -1
     property string bearbeiteterUntereintragText: ""
@@ -39,6 +40,7 @@ QtControls.ItemDelegate {
     signal unterPrioritaetGewechselt(int unterIndex, int neuePrioritaet)
     signal unterErledigtGewechselt(int unterIndex, bool istErledigt)
     signal alsUnterzeileVerschiebenAngefragt(int quellIndex, int zielIndex)
+    signal faelligkeitGewechselt(string neueFaelligkeit)
     signal loeschenAngefragt()
     signal verschoben(int vonIndex, int nachIndex)
     signal verschiebenBeendet()
@@ -52,10 +54,16 @@ QtControls.ItemDelegate {
     readonly property bool istDragZielGlobal: dragStatusAktiv() && dragStatusZielIndex() === index
     readonly property bool istDragUnterModusGlobal: dragStatusUnterModus()
 
+    readonly property bool gefiltertAusgeblendet:
+        (aufgabenDelegate.filterModus === 1 && aufgabenDelegate.erledigt) ||
+        (aufgabenDelegate.filterModus === 2 && !aufgabenDelegate.erledigt)
+
     width: ListView.view ? ListView.view.width : implicitWidth
     padding: Kirigami.Units.smallSpacing * 0.04
-    implicitHeight: Math.max(zeilenHoehe, contentItem.implicitHeight + (padding * 2))
+    implicitHeight: gefiltertAusgeblendet ? 0 : Math.max(zeilenHoehe, contentItem.implicitHeight + (padding * 2))
     height: implicitHeight
+    clip: true
+    opacity: gefiltertAusgeblendet ? 0 : (dragMausflaeche.pressed ? 0.72 : 1.0)
 
     function bearbeitungStarten() {
         bearbeitungsText = beschreibung;
@@ -218,8 +226,6 @@ QtControls.ItemDelegate {
         aufgabenDelegate.unterzeilenModusAktiv = false;
         aufgabenDelegate.unterzeilenZielIndex = -1;
     }
-
-    opacity: dragMausflaeche.pressed ? 0.72 : 1.0
 
     background: Rectangle {
         radius: 4
@@ -742,15 +748,148 @@ QtControls.ItemDelegate {
                 }
             }
 
-            QtControls.Label {
+            RowLayout {
                 Layout.fillWidth: true
-                visible: aufgabenDelegate.faelligkeit.length > 0
-                font.pixelSize: Kirigami.Units.gridUnit * 0.56
-                // qmllint disable unqualified
-                text: i18n("Faellig: %1", aufgabenDelegate.faelligkeit)
-                // qmllint enable unqualified
-                elide: Text.ElideRight
-                color: aufgabenDelegate.istUeberfaellig(aufgabenDelegate.faelligkeit) ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.disabledTextColor
+                spacing: Kirigami.Units.smallSpacing * 0.5
+                visible: !aufgabenDelegate.bearbeitungsModus
+
+                QtControls.Button {
+                    id: datumButton
+                    Layout.preferredHeight: Kirigami.Units.gridUnit * 0.78
+                    padding: Kirigami.Units.smallSpacing * 0.6
+                    // qmllint disable unqualified
+                    text: aufgabenDelegate.faelligkeit.length > 0
+                        ? (aufgabenDelegate.istUeberfaellig(aufgabenDelegate.faelligkeit)
+                            ? "⚠ " + aufgabenDelegate.faelligkeit
+                            : "📅 " + aufgabenDelegate.faelligkeit)
+                        : i18n("+ Datum")
+                    // qmllint enable unqualified
+                    font.pixelSize: Kirigami.Units.gridUnit * 0.52
+                    opacity: datumButton.hovered ? 1.0 : (aufgabenDelegate.faelligkeit.length > 0 ? 0.9 : 0.45)
+
+                    background: Rectangle {
+                        radius: 3
+                        color: aufgabenDelegate.istUeberfaellig(aufgabenDelegate.faelligkeit)
+                            ? Qt.rgba(0.84, 0.2, 0.2, datumButton.hovered ? 0.22 : 0.1)
+                            : Qt.rgba(1, 1, 1, datumButton.hovered ? 0.1 : 0.0)
+                        border.width: aufgabenDelegate.faelligkeit.length > 0 ? 1 : 0
+                        border.color: aufgabenDelegate.istUeberfaellig(aufgabenDelegate.faelligkeit)
+                            ? Qt.rgba(0.92, 0.26, 0.26, 0.5)
+                            : Qt.rgba(1, 1, 1, 0.18)
+                    }
+
+                    contentItem: Text {
+                        text: datumButton.text
+                        font: datumButton.font
+                        color: aufgabenDelegate.istUeberfaellig(aufgabenDelegate.faelligkeit)
+                            ? Kirigami.Theme.negativeTextColor
+                            : (aufgabenDelegate.faelligkeit.length > 0
+                                ? Kirigami.Theme.textColor
+                                : Kirigami.Theme.disabledTextColor)
+                        verticalAlignment: Text.AlignVCenter
+                        horizontalAlignment: Text.AlignLeft
+                    }
+
+                    onClicked: datumPopup.open()
+
+                    QtControls.Popup {
+                        id: datumPopup
+                        y: datumButton.height + Kirigami.Units.smallSpacing * 0.5
+                        x: 0
+                        width: Kirigami.Units.gridUnit * 11
+                        padding: Kirigami.Units.smallSpacing * 0.8
+                        modal: true
+                        focus: true
+                        closePolicy: QtControls.Popup.CloseOnEscape | QtControls.Popup.CloseOnPressOutside
+
+                        background: Rectangle {
+                            radius: 5
+                            color: Kirigami.Theme.backgroundColor
+                            border.width: 1
+                            border.color: Qt.rgba(1, 1, 1, 0.18)
+                        }
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            spacing: Kirigami.Units.smallSpacing * 0.5
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Kirigami.Units.smallSpacing * 0.5
+
+                                QtControls.TextField {
+                                    id: datumEingabe
+                                    Layout.fillWidth: true
+                                    // qmllint disable unqualified
+                                    placeholderText: i18n("YYYY-MM-DD")
+                                    // qmllint enable unqualified
+                                    text: aufgabenDelegate.faelligkeit
+                                    font.pixelSize: Kirigami.Units.gridUnit * 0.6
+                                    padding: Kirigami.Units.smallSpacing * 0.5
+
+                                    Keys.onReturnPressed: {
+                                        datumPopup.datumUebernehmen(datumEingabe.text.trim());
+                                    }
+                                }
+
+                                QtControls.Button {
+                                    // qmllint disable unqualified
+                                    text: i18n("OK")
+                                    // qmllint enable unqualified
+                                    font.pixelSize: Kirigami.Units.gridUnit * 0.55
+                                    Layout.preferredHeight: Kirigami.Units.gridUnit * 0.9
+                                    onClicked: datumPopup.datumUebernehmen(datumEingabe.text.trim())
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Kirigami.Units.smallSpacing * 0.5
+
+                                Repeater {
+                                    model: [
+                                        // qmllint disable unqualified
+                                        { label: i18n("Heute"),   tage: 0 },
+                                        { label: i18n("Morgen"),  tage: 1 },
+                                        { label: i18n("+7 Tage"), tage: 7 }
+                                        // qmllint enable unqualified
+                                    ]
+
+                                    delegate: QtControls.Button {
+                                        required property var modelData
+                                        text: modelData.label
+                                        font.pixelSize: Kirigami.Units.gridUnit * 0.52
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: Kirigami.Units.gridUnit * 0.82
+                                        onClicked: {
+                                            const d = new Date();
+                                            d.setDate(d.getDate() + modelData.tage);
+                                            const iso = d.toISOString().substring(0, 10);
+                                            datumPopup.datumUebernehmen(iso);
+                                        }
+                                    }
+                                }
+                            }
+
+                            QtControls.Button {
+                                // qmllint disable unqualified
+                                text: i18n("Datum entfernen")
+                                // qmllint enable unqualified
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.52
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: Kirigami.Units.gridUnit * 0.78
+                                visible: aufgabenDelegate.faelligkeit.length > 0
+                                opacity: 0.72
+                                onClicked: datumPopup.datumUebernehmen("")
+                            }
+                        }
+
+                        function datumUebernehmen(wert) {
+                            datumPopup.close();
+                            aufgabenDelegate.faelligkeitGewechselt(wert);
+                        }
+                    }
+                }
             }
         }
 

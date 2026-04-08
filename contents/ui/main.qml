@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls as QtControls
 import org.kde.plasma.plasmoid
 import org.kde.kirigami as Kirigami
+import org.kde.notification
 
 pragma ComponentBehavior: Bound
 
@@ -16,6 +17,8 @@ PlasmoidItem {
     property int dragQuellIndex: -1
     property int dragZielIndex: -1
     property bool dragUnterModus: false
+    property int filterModus: 0   // 0=alle, 1=offen, 2=erledigt
+    property int sortierModus: 0  // 0=standard, 1=prioritaet, 2=datum
     // qmllint enable unqualified
 
     implicitWidth: Kirigami.Units.gridUnit * 15.5
@@ -68,6 +71,63 @@ PlasmoidItem {
             clip: true
         }
 
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Kirigami.Units.smallSpacing * 0.4
+
+            Repeater {
+                model: [
+                    // qmllint disable unqualified
+                    { label: i18n("Alle"),      modus: 0 },
+                    { label: i18n("Offen"),     modus: 1 },
+                    { label: i18n("Erledigt"),  modus: 2 }
+                    // qmllint enable unqualified
+                ]
+                delegate: QtControls.Button {
+                    required property var modelData
+                    text: modelData.label
+                    font.pixelSize: Kirigami.Units.gridUnit * 0.52
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Kirigami.Units.gridUnit * 0.82
+                    flat: root.filterModus !== modelData.modus
+                    highlighted: root.filterModus === modelData.modus
+                    onClicked: root.filterModus = modelData.modus
+                }
+            }
+
+            Rectangle {
+                width: 1
+                Layout.fillHeight: true
+                color: Qt.rgba(1, 1, 1, 0.15)
+            }
+
+            QtControls.Button {
+                id: sortierButton
+                // qmllint disable unqualified
+                text: root.sortierModus === 1 ? "↕P" : (root.sortierModus === 2 ? "↕D" : "↕")
+                // qmllint enable unqualified
+                font.pixelSize: Kirigami.Units.gridUnit * 0.52
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 0.82
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 1.4
+                highlighted: root.sortierModus > 0
+                onClicked: {
+                    root.sortierModus = (root.sortierModus + 1) % 3;
+                    if (root.sortierModus === 1) {
+                        aufgabenModell.sortierenNachPrioritaet();
+                    } else if (root.sortierModus === 2) {
+                        aufgabenModell.sortierenNachDatum();
+                    }
+                }
+                QtControls.ToolTip {
+                    // qmllint disable unqualified
+                    text: root.sortierModus === 1 ? i18n("Sortiert nach Priorität") : (root.sortierModus === 2 ? i18n("Sortiert nach Datum") : i18n("Sortierung: Standard"))
+                    // qmllint enable unqualified
+                    delay: 300
+                    visible: sortierButton.hovered
+                }
+            }
+        }
+
         Rectangle {
             color: Kirigami.Theme.backgroundColor
             Layout.fillWidth: true
@@ -96,6 +156,7 @@ PlasmoidItem {
                 delegate: AufgabenDelegate {
                     width: aufgabenListe.width
                     dragController: root
+                    filterModus: root.filterModus
 
                     onErledigtGewechselt: function(istErledigt) {
                         aufgabenModell.erledigtSetzen(index, istErledigt);
@@ -139,6 +200,10 @@ PlasmoidItem {
 
                     onLoeschenAngefragt: {
                         aufgabenModell.aufgabeLoeschen(index);
+                    }
+
+                    onFaelligkeitGewechselt: function(neueFaelligkeit) {
+                        aufgabenModell.aktualisiereFaelligkeit(index, neueFaelligkeit);
                     }
                 }
                 
@@ -249,5 +314,37 @@ PlasmoidItem {
         nextcloudUrl: Plasmoid.configuration.nextcloudUrl || ""
         benutzername: Plasmoid.configuration.nextcloudUsername || ""
         // qmllint enable unqualified
+    }
+
+    KNotification {
+        id: faelligkeitsHinweis
+        componentName: "plasma_applet_com.meinprojekt.aufgaben"
+        eventId: "faelligkeit"
+        iconName: "view-task"
+        flags: KNotification.Persistent
+    }
+
+    Timer {
+        interval: 60000
+        running: true
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: {
+            const heute = new Date();
+            heute.setHours(0, 0, 0, 0);
+            const aufgaben = aufgabenModell.alsArray();
+            const faellige = aufgaben.filter(function(a) {
+                if (a.erledigt || !a.faelligkeit) return false;
+                const d = new Date(a.faelligkeit);
+                return !isNaN(d.getTime()) && d <= heute;
+            });
+            if (faellige.length > 0) {
+                // qmllint disable unqualified
+                faelligkeitsHinweis.title = i18n("Fällige Aufgaben");
+                faelligkeitsHinweis.text = faellige.map(function(a) { return "• " + a.beschreibung; }).join("\n");
+                // qmllint enable unqualified
+                faelligkeitsHinweis.sendEvent();
+            }
+        }
     }
 }

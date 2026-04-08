@@ -230,6 +230,30 @@ ListModel {
         persistiere();
     }
 
+    function sortierenNachPrioritaet() {
+        const arr = alsArray();
+        arr.sort(function(a, b) { return b.prioritaet - a.prioritaet; });
+        _laedtAusSpeicher = true;
+        clear();
+        for (let i = 0; i < arr.length; ++i) append(arr[i]);
+        _laedtAusSpeicher = false;
+        persistiere();
+    }
+
+    function sortierenNachDatum() {
+        const arr = alsArray();
+        arr.sort(function(a, b) {
+            const da = a.faelligkeit ? new Date(a.faelligkeit).getTime() : Infinity;
+            const db = b.faelligkeit ? new Date(b.faelligkeit).getTime() : Infinity;
+            return da - db;
+        });
+        _laedtAusSpeicher = true;
+        clear();
+        for (let i = 0; i < arr.length; ++i) append(arr[i]);
+        _laedtAusSpeicher = false;
+        persistiere();
+    }
+
     function alsArray() {
         const aufgaben = [];
 
