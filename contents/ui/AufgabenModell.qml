@@ -230,8 +230,20 @@ ListModel {
         persistiere();
     }
 
+    function _kopiereAlsArray() {
+        const arr = [];
+        for (let i = 0; i < count; ++i) {
+            const e = get(i);
+            arr.push(erzeugeListeneintrag(
+                e.beschreibung, e.prioritaet, e.faelligkeit,
+                normalisiereListe(e.untereintraege), e.erledigt
+            ));
+        }
+        return arr;
+    }
+
     function sortierenNachPrioritaet() {
-        const arr = alsArray();
+        const arr = _kopiereAlsArray();
         arr.sort(function(a, b) { return b.prioritaet - a.prioritaet; });
         _laedtAusSpeicher = true;
         clear();
@@ -241,7 +253,7 @@ ListModel {
     }
 
     function sortierenNachDatum() {
-        const arr = alsArray();
+        const arr = _kopiereAlsArray();
         arr.sort(function(a, b) {
             const da = a.faelligkeit ? new Date(a.faelligkeit).getTime() : Infinity;
             const db = b.faelligkeit ? new Date(b.faelligkeit).getTime() : Infinity;
