@@ -326,6 +326,17 @@ QtControls.ItemDelegate {
             }
         }
 
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            height: 3
+            radius: 1
+            z: 10
+            visible: aufgabenDelegate.istDragZielGlobal && !aufgabenDelegate.istDragUnterModusGlobal
+            color: Qt.rgba(0.2, 0.68, 0.36, 0.92)
+        }
+
         DropArea {
             id: dropZone
             anchors.fill: parent
@@ -382,6 +393,10 @@ QtControls.ItemDelegate {
                 acceptedButtons: Qt.LeftButton
                 anchors.fill: parent
                 cursorShape: dragMausflaeche.pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+
+                onPressAndHold: function(mouse) {
+                    mouse.accepted = true;
+                }
 
                 onPressed: function(mouse) {
                     mouse.accepted = true;
