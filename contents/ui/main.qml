@@ -316,12 +316,12 @@ PlasmoidItem {
         // qmllint enable unqualified
     }
 
-    KNotification {
+    Notification {
         id: faelligkeitsHinweis
         componentName: "plasma_applet_com.meinprojekt.aufgaben"
         eventId: "faelligkeit"
         iconName: "view-task"
-        flags: KNotification.Persistent
+        flags: Notification.Persistent
     }
 
     Timer {
