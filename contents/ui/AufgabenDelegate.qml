@@ -232,7 +232,7 @@ QtControls.ItemDelegate {
         color: aufgabenDelegate.unterzeilenModusAktiv
             ? Qt.rgba(1, 1, 1, 0.08)
             : (aufgabenDelegate.hovered
-            ? Qt.rgba(1, 1, 1, 0.05)
+            ? Qt.rgba(1, 1, 1, 0.12)
             : Kirigami.Theme.backgroundColor)
         border.width: (aufgabenDelegate.unterzeilenModusAktiv || aufgabenDelegate.istDragZielGlobal || aufgabenDelegate.istDragQuelleGlobal) ? 2 : 1
         border.color: aufgabenDelegate.unterzeilenModusAktiv
