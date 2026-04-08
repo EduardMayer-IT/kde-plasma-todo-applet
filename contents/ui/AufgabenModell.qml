@@ -236,7 +236,7 @@ ListModel {
             const e = get(i);
             arr.push(erzeugeListeneintrag(
                 e.beschreibung, e.prioritaet, e.faelligkeit,
-                normalisiereListe(e.untereintraege), e.erledigt
+                klonUntereintraege(i), e.erledigt
             ));
         }
         return arr;
