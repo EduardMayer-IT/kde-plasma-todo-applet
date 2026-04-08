@@ -56,7 +56,7 @@ QtControls.ItemDelegate {
 
     readonly property bool gefiltertAusgeblendet:
         (aufgabenDelegate.filterModus === 1 && aufgabenDelegate.erledigt) ||
-        (aufgabenDelegate.filterModus === 2 && !aufgabenDelegate.erledigt)
+        (aufgabenDelegate.filterModus === 2 && !aufgabenDelegate.erledigt && !hatErledigteUntereintraege())
 
     width: ListView.view ? ListView.view.width : implicitWidth
     padding: Kirigami.Units.smallSpacing * 0.04
@@ -134,6 +134,17 @@ QtControls.ItemDelegate {
         }
 
         return (text || "").trim();
+    }
+
+    function hatErledigteUntereintraege() {
+        const wert = aufgabenDelegate.untereintraege;
+        if (!wert) return false;
+        const n = typeof wert.count === "number" ? wert.count : (typeof wert.length === "number" ? wert.length : 0);
+        for (let i = 0; i < n; ++i) {
+            const item = typeof wert.get === "function" ? wert.get(i) : wert[i];
+            if (item && item.erledigt) return true;
+        }
+        return false;
     }
 
     function untereintraegeAnzahl() {
