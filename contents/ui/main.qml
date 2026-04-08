@@ -142,7 +142,10 @@ PlasmoidItem {
                     }
                 }
                 
-                QtControls.ScrollBar.vertical: QtControls.ScrollBar {}
+                QtControls.ScrollBar.vertical: QtControls.ScrollBar {
+                    policy: QtControls.ScrollBar.AsNeeded
+                    width: Kirigami.Units.gridUnit * 0.28
+                }
             }
         }
 
