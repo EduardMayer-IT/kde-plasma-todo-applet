@@ -11,7 +11,6 @@ PlasmoidItem {
     id: root
     // qmllint disable unqualified
     readonly property string gespeicherteAufgaben: Plasmoid.configuration.tasksJson || "[]"
-    readonly property string listenTitel: (Plasmoid.configuration.listTitle || "").trim() || i18n("Aufgabenliste")
     property int neueAufgabePrioritaet: 0
     property bool dragAktiv: false
     property int dragQuellIndex: -1
@@ -60,16 +59,6 @@ PlasmoidItem {
         anchors.fill: parent
         anchors.margins: Kirigami.Units.smallSpacing * 0.7
         spacing: Kirigami.Units.smallSpacing * 0.45
-
-        Kirigami.Heading {
-            level: 3
-            text: root.listenTitel
-            Layout.fillWidth: true
-            wrapMode: Text.NoWrap
-            elide: Text.ElideRight
-            maximumLineCount: 1
-            clip: true
-        }
 
         RowLayout {
             Layout.fillWidth: true
