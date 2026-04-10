@@ -64,36 +64,73 @@ PlasmoidItem {
             Layout.fillWidth: true
             spacing: Kirigami.Units.smallSpacing * 0.4
 
-            QtControls.ComboBox {
-                id: filterMenue
+            QtControls.Button {
+                id: filterButton
                 Layout.fillWidth: true
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 0.9
                 font.pixelSize: Kirigami.Units.gridUnit * 0.62
                 // qmllint disable unqualified
-                model: [i18n("Alle"), i18n("Offen"), i18n("Erledigt")]
+                text: [i18n("Alle"), i18n("Offen"), i18n("Erledigt")][root.filterModus]
                 // qmllint enable unqualified
-                currentIndex: root.filterModus
-                onActivated: function(index) {
-                    root.filterModus = index;
+                onClicked: filterMenu.popup(filterButton, 0, filterButton.height)
+
+                QtControls.Menu {
+                    id: filterMenu
+                    // qmllint disable unqualified
+                    QtControls.MenuItem {
+                        text: i18n("Alle")
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.62
+                        onTriggered: root.filterModus = 0
+                    }
+                    QtControls.MenuItem {
+                        text: i18n("Offen")
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.62
+                        onTriggered: root.filterModus = 1
+                    }
+                    QtControls.MenuItem {
+                        text: i18n("Erledigt")
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.62
+                        onTriggered: root.filterModus = 2
+                    }
+                    // qmllint enable unqualified
                 }
             }
 
-            QtControls.ComboBox {
-                id: sortierMenue
+            QtControls.Button {
+                id: sortierButton
                 Layout.fillWidth: true
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 0.9
                 font.pixelSize: Kirigami.Units.gridUnit * 0.62
                 // qmllint disable unqualified
-                model: [i18n("Sortierung: Standard"), i18n("Sortierung: Priorität"), i18n("Sortierung: Datum")]
+                text: [i18n("Sortierung: Standard"), i18n("Sortierung: Priorität"), i18n("Sortierung: Datum")][root.sortierModus]
                 // qmllint enable unqualified
-                currentIndex: root.sortierModus
-                onActivated: function(index) {
-                    root.sortierModus = index;
-                    if (index === 1) {
-                        aufgabenModell.sortierenNachPrioritaet();
-                    } else if (index === 2) {
-                        aufgabenModell.sortierenNachDatum();
+                onClicked: sortierMenu.popup(sortierButton, 0, sortierButton.height)
+
+                QtControls.Menu {
+                    id: sortierMenu
+                    // qmllint disable unqualified
+                    QtControls.MenuItem {
+                        text: i18n("Sortierung: Standard")
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.62
+                        onTriggered: root.sortierModus = 0
                     }
+                    QtControls.MenuItem {
+                        text: i18n("Sortierung: Priorität")
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.62
+                        onTriggered: {
+                            root.sortierModus = 1;
+                            aufgabenModell.sortierenNachPrioritaet();
+                        }
+                    }
+                    QtControls.MenuItem {
+                        text: i18n("Sortierung: Datum")
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.62
+                        onTriggered: {
+                            root.sortierModus = 2;
+                            aufgabenModell.sortierenNachDatum();
+                        }
+                    }
+                    // qmllint enable unqualified
                 }
             }
         }
