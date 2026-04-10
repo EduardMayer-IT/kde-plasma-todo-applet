@@ -276,6 +276,44 @@ ListModel {
         return aufgaben;
     }
 
+    function exportAlsText() {
+        const zeilen = [];
+
+        function prioritaetText(prio) {
+            switch (prio) {
+            case 2:
+                return "Hoch";
+            case 1:
+                return "Mittel";
+            default:
+                return "Niedrig";
+            }
+        }
+
+        for (let i = 0; i < count; ++i) {
+            const eintrag = get(i);
+            const erledigtMarker = eintrag.erledigt ? "[x]" : "[ ]";
+            zeilen.push(erledigtMarker + " " + (eintrag.beschreibung || ""));
+
+            const meta = ["Prioritaet: " + prioritaetText(eintrag.prioritaet)];
+            if (eintrag.faelligkeit) {
+                meta.push("Faelligkeit: " + eintrag.faelligkeit);
+            }
+            zeilen.push("  " + meta.join(" | "));
+
+            const untereintraege = normalisiereListe(eintrag.untereintraege);
+            for (let j = 0; j < untereintraege.length; ++j) {
+                const unter = untereintraege[j] || {};
+                const unterMarker = unter.erledigt ? "[x]" : "[ ]";
+                zeilen.push("  - " + unterMarker + " " + (unter.beschreibung || ""));
+            }
+
+            zeilen.push("");
+        }
+
+        return zeilen.join("\n").trim() + "\n";
+    }
+
     function persistiere() {
         if (_laedtAusSpeicher) {
             return;

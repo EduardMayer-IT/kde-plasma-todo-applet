@@ -1,7 +1,10 @@
 import QtQuick
+import QtCore
 import QtQuick.Layouts
 import QtQuick.Controls as QtControls
+import QtQuick.Dialogs as QtDialogs
 import org.kde.plasma.plasmoid
+import org.kde.plasma.plasma5support as P5Support
 import org.kde.kirigami as Kirigami
 import org.kde.notification
 
@@ -18,6 +21,7 @@ PlasmoidItem {
     property bool dragUnterModus: false
     property int filterModus: 0   // 0=alle, 1=offen, 2=erledigt
     property int sortierModus: 0  // 0=standard, 1=prioritaet, 2=datum
+    property string letzterExportPfad: ""
     // qmllint enable unqualified
 
     implicitWidth: Kirigami.Units.gridUnit * 15.5
@@ -53,6 +57,45 @@ PlasmoidItem {
             return i18n("Niedrig");
         }
         // qmllint enable unqualified
+    }
+
+    function shellQuote(text) {
+        return "'" + String(text).replace(/'/g, "'\"'\"'") + "'";
+    }
+
+    function urlZuDateipfad(fileUrl) {
+        const raw = String(fileUrl || "");
+        if (!raw) {
+            return "";
+        }
+
+        if (raw.startsWith("file://")) {
+            return decodeURIComponent(raw.replace("file://", ""));
+        }
+        return raw;
+    }
+
+    function exportiereAufgabenAlsDatei(fileUrl) {
+        let zielPfad = urlZuDateipfad(fileUrl);
+        if (!zielPfad) {
+            return;
+        }
+        if (!zielPfad.endsWith(".txt")) {
+            zielPfad += ".txt";
+        }
+
+        const text = aufgabenModell.exportAlsText();
+        let marker = "__TODO_EXPORT_EOF__";
+        while (text.indexOf(marker) !== -1) {
+            marker += "_X";
+        }
+
+        const script = "cat <<'" + marker + "' > " + shellQuote(zielPfad) + "\n"
+            + text
+            + "\n" + marker;
+
+        letzterExportPfad = zielPfad;
+        exportEngine.connectSource("sh -c " + shellQuote(script));
     }
 
     ColumnLayout {
@@ -132,6 +175,17 @@ PlasmoidItem {
                     }
                     // qmllint enable unqualified
                 }
+            }
+
+            QtControls.Button {
+                id: exportButton
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 0.9
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 1.9
+                font.pixelSize: Kirigami.Units.gridUnit * 0.58
+                // qmllint disable unqualified
+                text: i18n("Export")
+                // qmllint enable unqualified
+                onClicked: exportDialog.open()
             }
         }
 
@@ -329,6 +383,52 @@ PlasmoidItem {
         eventId: "faelligkeit"
         iconName: "view-task"
         flags: Notification.Persistent
+    }
+
+    Notification {
+        id: exportHinweis
+        componentName: "plasma_applet_com.meinprojekt.aufgaben"
+        eventId: "faelligkeit"
+        iconName: "document-save"
+    }
+
+    QtDialogs.FileDialog {
+        id: exportDialog
+        // qmllint disable unqualified
+        title: i18n("Aufgaben als TXT exportieren")
+        fileMode: QtDialogs.FileDialog.SaveFile
+        nameFilters: [i18n("Textdateien (*.txt)"), i18n("Alle Dateien (*)")]
+        // qmllint enable unqualified
+        currentFolder: StandardPaths.standardLocations(StandardPaths.DocumentsLocation)[0]
+        currentFile: "aufgaben-export.txt"
+        onAccepted: root.exportiereAufgabenAlsDatei(selectedFile)
+    }
+
+    P5Support.DataSource {
+        id: exportEngine
+        engine: "executable"
+
+        onNewData: function(sourceName, data) {
+            const code = data["exit code"] !== undefined
+                ? data["exit code"]
+                : (data.exitCode !== undefined ? data.exitCode : 0);
+
+            if (code === 0) {
+                // qmllint disable unqualified
+                exportHinweis.title = i18n("Export erfolgreich")
+                exportHinweis.text = i18n("Datei gespeichert: %1", root.letzterExportPfad)
+                // qmllint enable unqualified
+            } else {
+                // qmllint disable unqualified
+                exportHinweis.title = i18n("Export fehlgeschlagen")
+                exportHinweis.text = i18n("Datei konnte nicht geschrieben werden")
+                // qmllint enable unqualified
+            }
+            exportHinweis.sendEvent();
+
+            disconnectSource(sourceName);
+            removeSource(sourceName);
+        }
     }
 
     Timer {
