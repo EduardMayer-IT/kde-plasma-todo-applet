@@ -204,7 +204,7 @@ PlasmoidItem {
                     QtControls.MenuItem {
                         text: i18n("Jetzt synchronisieren")
                         font.pixelSize: Kirigami.Units.gridUnit * 0.62
-                        enabled: datenSync.kannSynchronisieren && !datenSync.synchronisiertGerade
+                        enabled: !datenSync.synchronisiertGerade
                         onTriggered: datenSync.synchronisiere(aufgabenModell._kopiereAlsArray())
                     }
                     QtControls.MenuSeparator {}

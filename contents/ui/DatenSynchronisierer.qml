@@ -19,6 +19,7 @@ Item {
     property bool passwortGeladen: false
     property bool synchronisiertGerade: false
     property var _syncAufgaben: []
+    property bool _syncNachPasswortLaden: false
 
     property string statusNachricht: ""
     property bool hatFehler: false
@@ -90,12 +91,17 @@ Item {
             return;
         }
 
-        const konfiguration = _pruefeKonfiguration();
-        if (!konfiguration.gueltig) {
-            _fehlschlag(konfiguration.nachricht);
+        // Basis-Konfiguration prüfen (ohne Passwort)
+        if (!benutzername.trim()) {
+            _fehlschlag("Benutzername fehlt – bitte Einstellungen öffnen");
+            return;
+        }
+        if (!_hatSichereServerUrl()) {
+            _fehlschlag("Nur HTTPS-URLs sind erlaubt");
             return;
         }
 
+        // Aufgaben vormerken (für Passwort-Nachladen)
         const lokal = [];
         for (let i = 0; i < aufgaben.length; i++) {
             const a = aufgaben[i] || {};
@@ -110,12 +116,23 @@ Item {
                 caldavHref: a.caldavHref || ""
             });
         }
-
         root._syncAufgaben = lokal;
+
+        // Passwort noch nicht geladen → erst laden, dann automatisch Sync starten
+        if (!passwortGeladen || !_passwort) {
+            root._syncNachPasswortLaden = true;
+            root.statusNachricht = "Lade Passwort...";
+            ladePasswort();
+            return;
+        }
+
+        _startSync(lokal);
+    }
+
+    function _startSync(lokal) {
         root.synchronisiertGerade = true;
         root.hatFehler = false;
         root.statusNachricht = "Synchronisiere mit Nextcloud...";
-
         _syncLokaleAufgabe(0, lokal, [], {});
     }
 
@@ -565,11 +582,17 @@ Item {
                 root.passwortGeladen = true;
                 root.hatFehler = false;
                 root.statusNachricht = "";
+                // Sync wurde angefordert während Passwort noch geladen wurde → jetzt starten
+                if (root._syncNachPasswortLaden) {
+                    root._syncNachPasswortLaden = false;
+                    _startSync(root._syncAufgaben);
+                }
             } else {
                 root._passwort = "";
                 root.passwortGeladen = false;
+                root._syncNachPasswortLaden = false;
                 root.hatFehler = true;
-                root.statusNachricht = "Passwort nicht im Schluesselbund - bitte eingeben";
+                root.statusNachricht = "Passwort nicht gefunden – bitte in Einstellungen eingeben";
             }
             root.passwortLadeFertig(root.passwortGeladen);
         }
