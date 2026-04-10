@@ -590,9 +590,9 @@ PlasmoidItem {
                 Layout.fillWidth: true
                 visible: datenSync.hatFehler || !datenSync.kannSynchronisieren
                 // qmllint disable unqualified
-                text: datenSync.passwortGeladen
-                    ? ""
-                    : i18n("⚠ Passwort nicht geladen – nach Speichern wird neu geladen")
+                text: datenSync.statusNachricht.length > 0
+                    ? datenSync.statusNachricht
+                    : i18n("Nur HTTPS wird akzeptiert; Passwort wird separat geladen")
                 // qmllint enable unqualified
                 font.pixelSize: Kirigami.Units.gridUnit * 0.56
                 wrapMode: Text.Wrap

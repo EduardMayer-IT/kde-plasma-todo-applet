@@ -3,161 +3,202 @@ import org.kde.plasma.plasma5support as P5Support
 
 /*
  * Dieses Projekt steht unter der MIT-Lizenz.
- * Nextcloud CalDAV-Synchronisation via secret-tool (Secret Service API).
- * Kompatibel mit KeePassXC, KWallet und GNOME Keyring.
+ * Nextcloud CalDAV-Synchronisation mit Secret Service fuer Passwortspeicherung.
+ * Der Netzverkehr laeuft direkt ueber HTTPS-Requests statt ueber Shell und curl.
  */
 
 Item {
     id: root
     visible: false
 
-    // === Konfiguration (von main.qml gesetzt) ===
     property string benutzername: ""
     property string nextcloudUrl: ""
     property string kalenderPfad: "tasks"
 
-    // === Interner Laufzeitzustand (Passwort nur im RAM, nie persistiert) ===
     property string _passwort: ""
     property bool passwortGeladen: false
     property bool synchronisiertGerade: false
     property var _syncAufgaben: []
 
-    // === UI-Status ===
     property string statusNachricht: ""
     property bool hatFehler: false
 
+    readonly property bool hatSichereKonfiguration:
+        _hatSichereServerUrl() &&
+        _normalisiereKalenderPfad(kalenderPfad).length > 0 &&
+        benutzername.trim().length > 0
+
     readonly property bool kannSynchronisieren:
-        nextcloudUrl.length > 0 &&
-        benutzername.length > 0 &&
+        hatSichereKonfiguration &&
         passwortGeladen &&
         _passwort.length > 0
 
-    // === Signale ===
     signal passwortLadeFertig(bool erfolg)
-    signal aufgabenEmpfangen(var aufgaben)        // Array von Aufgaben-Objekten
+    signal aufgabenEmpfangen(var aufgaben)
     signal synchronisationFertig(bool erfolg, string nachricht)
 
-    // -------------------------------------------------------------------
-    // Passwort-Verwaltung  (Secret Service API über secret-tool)
-    // Funktioniert mit KeePassXC (SecretService-Integration aktiviert),
-    // KWallet und GNOME Keyring.
-    // -------------------------------------------------------------------
-
     function ladePasswort() {
-        if (!benutzername) {
+        if (!benutzername.trim()) {
             root.hatFehler = true;
             root.statusNachricht = "Kein Benutzername konfiguriert";
             root.passwortLadeFertig(false);
             return;
         }
-        const cmd = "secret-tool lookup service nextcloud-todo-kde username " + _sq(benutzername);
+
+        const cmd = "secret-tool lookup service nextcloud-todo-kde username " + _sq(benutzername.trim());
         passwortLadenEngine.connectSource("sh -c " + _sq(cmd));
     }
 
     function speicherePasswort(passwort) {
-        if (!benutzername || !passwort) return;
+        if (!benutzername.trim() || !passwort) {
+            return;
+        }
+
         root._passwort = passwort;
-        const label = "Nextcloud App-Passwort (" + benutzername + ")";
+        root.passwortGeladen = true;
+        root.hatFehler = false;
+        root.statusNachricht = "";
+
+        const label = "Nextcloud App-Passwort (" + benutzername.trim() + ")";
         const cmd = "printf '%s' " + _sq(passwort)
             + " | secret-tool store --label=" + _sq(label)
-            + " service nextcloud-todo-kde username " + _sq(benutzername);
+            + " service nextcloud-todo-kde username " + _sq(benutzername.trim());
         passwortSpeichernEngine.connectSource("sh -c " + _sq(cmd));
     }
 
     function loeschePasswort() {
         root._passwort = "";
         root.passwortGeladen = false;
-        const cmd = "secret-tool clear service nextcloud-todo-kde username " + _sq(benutzername);
+        const cmd = "secret-tool clear service nextcloud-todo-kde username " + _sq(benutzername.trim());
         passwortSpeichernEngine.connectSource("sh -c " + _sq(cmd));
     }
 
-    // -------------------------------------------------------------------
-    // Synchronisation (bidirektional, einfach):
-    //   1. Lokale Aufgaben (ohne uid → neue uid generieren) → PUT zum Server
-    //   2. REPORT vom Server → Server-Aufgaben einlesen
-    //   3. Merge: lokale Etags aktualisieren, server-exklusive Aufgaben lokal hinzufügen
-    // -------------------------------------------------------------------
-
     function synchronisiere(aufgaben) {
-        if (!kannSynchronisieren) {
-            root.statusNachricht = "Nicht konfiguriert – bitte Einstellungen öffnen";
-            root.synchronisationFertig(false, root.statusNachricht);
+        if (root.synchronisiertGerade) {
             return;
         }
-        if (root.synchronisiertGerade) return;
 
-        // Sicherheitskopie erstellen, neue UIDs für lokale Aufgaben generieren
+        const konfiguration = _pruefeKonfiguration();
+        if (!konfiguration.gueltig) {
+            _fehlschlag(konfiguration.nachricht);
+            return;
+        }
+
         const lokal = [];
         for (let i = 0; i < aufgaben.length; i++) {
-            const a = aufgaben[i];
+            const a = aufgaben[i] || {};
             lokal.push({
                 beschreibung: a.beschreibung || "",
-                prioritaet:   a.prioritaet  || 0,
-                faelligkeit:  a.faelligkeit || "",
-                erledigt:     !!a.erledigt,
+                prioritaet: a.prioritaet || 0,
+                faelligkeit: a.faelligkeit || "",
+                erledigt: !!a.erledigt,
                 untereintraege: _kloneUntereintraege(a.untereintraege),
-                uid:       (a.uid  && a.uid.length  > 0) ? a.uid  : _generiereUuid(),
-                etag:      a.etag      || "",
+                uid: (a.uid && a.uid.length > 0) ? a.uid : _generiereUuid(),
+                etag: a.etag || "",
                 caldavHref: a.caldavHref || ""
             });
         }
 
-        root._syncAufgaben       = lokal;
+        root._syncAufgaben = lokal;
         root.synchronisiertGerade = true;
-        root.hatFehler           = false;
-        root.statusNachricht     = "Synchronisiere mit Nextcloud…";
+        root.hatFehler = false;
+        root.statusNachricht = "Synchronisiere mit Nextcloud...";
 
-        syncEngine.connectSource("sh -c " + _sq(_baueSyncScript(lokal)));
+        _syncLokaleAufgabe(0, lokal, [], {});
     }
 
-    // -------------------------------------------------------------------
-    // Interne Hilfsfunktionen
-    // -------------------------------------------------------------------
+    function _pruefeKonfiguration() {
+        if (!benutzername.trim()) {
+            return { gueltig: false, nachricht: "Benutzername fehlt" };
+        }
+        if (!_hatSichereServerUrl()) {
+            return { gueltig: false, nachricht: "Nur HTTPS-URLs sind erlaubt" };
+        }
+        if (_normalisiereKalenderPfad(kalenderPfad).length === 0) {
+            return { gueltig: false, nachricht: "Kalenderpfad ist ungueltig" };
+        }
+        if (!passwortGeladen || !_passwort) {
+            return { gueltig: false, nachricht: "Passwort nicht geladen" };
+        }
+        return { gueltig: true, nachricht: "" };
+    }
+
+    function _hatSichereServerUrl() {
+        const url = String(nextcloudUrl || "").trim();
+        return /^https:\/\/.+/i.test(url);
+    }
 
     function _baseUrl() {
-        return (nextcloudUrl || "").replace(/\/$/, "");
+        return String(nextcloudUrl || "").trim().replace(/\/+$/, "");
+    }
+
+    function _normalisiereKalenderPfad(pfad) {
+        const teile = String(pfad || "")
+            .split("/")
+            .map(function(segment) { return segment.trim(); })
+            .filter(function(segment) {
+                return segment.length > 0 && segment !== "." && segment !== "..";
+            });
+
+        for (let i = 0; i < teile.length; i++) {
+            if (!/^[A-Za-z0-9._~-]+$/.test(teile[i])) {
+                return "";
+            }
+        }
+
+        return teile.join("/");
     }
 
     function _caldavUrl() {
         return _baseUrl()
             + "/remote.php/dav/calendars/"
-            + encodeURIComponent(benutzername)
-            + "/" + kalenderPfad + "/";
+            + encodeURIComponent(benutzername.trim())
+            + "/" + _normalisiereKalenderPfad(kalenderPfad) + "/";
     }
 
-    // Einfaches single-quote Escaping für Shell-Argumente
     function _sq(text) {
         return "'" + String(text || "").replace(/'/g, "'\"'\"'") + "'";
     }
 
     function _generiereUuid() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
             const r = Math.random() * 16 | 0;
-            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+            return (c === "x" ? r : (r & 0x3 | 0x8)).toString(16);
         });
     }
 
-    // Unicode-String → UTF-8 → Base64 (für Einbettung in Shell-Skript)
-    function _zumBase64(text) {
+    function _utf8ZuBase64(text) {
         try {
             const enc = new TextEncoder();
             const bytes = enc.encode(text);
             let bin = "";
-            for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+            for (let i = 0; i < bytes.length; i++) {
+                bin += String.fromCharCode(bytes[i]);
+            }
             return btoa(bin);
-        } catch (e) {
+        } catch (error) {
             return btoa(unescape(encodeURIComponent(text)));
         }
     }
 
+    function _authHeader() {
+        return "Basic " + _utf8ZuBase64(benutzername.trim() + ":" + _passwort);
+    }
+
     function _kloneUntereintraege(liste) {
-        if (!Array.isArray(liste)) return [];
+        if (!Array.isArray(liste)) {
+            return [];
+        }
+
         return liste.map(function(u) {
-            return { beschreibung: u.beschreibung || "", prioritaet: u.prioritaet || 0, erledigt: !!u.erledigt };
+            return {
+                beschreibung: u.beschreibung || "",
+                prioritaet: u.prioritaet || 0,
+                erledigt: !!u.erledigt
+            };
         });
     }
 
-    // iCal-Datum (20240105 oder 20240105T120000Z) → YYYY-MM-DD
     function _icalDatumZuIso(wert) {
         const bereinigt = String(wert || "").replace(/T.*$/, "");
         if (bereinigt.length === 8) {
@@ -166,47 +207,51 @@ Item {
         return "";
     }
 
-    // YYYY-MM-DD → 20240105
     function _isoDatumZuIcal(iso) {
         return String(iso || "").replace(/-/g, "");
     }
 
-    // iCal-Priorität (1-9) → intern (0/1/2)
     function _icalPrioZuIntern(p) {
         const n = parseInt(p) || 0;
-        if (n >= 1 && n <= 4) return 2;   // Hoch
-        if (n === 5)          return 1;   // Mittel
-        return 0;                          // Niedrig / undefiniert
+        if (n >= 1 && n <= 4) return 2;
+        if (n === 5) return 1;
+        return 0;
     }
 
-    // Intern (0/1/2) → iCal-Priorität
     function _internPrioZuIcal(intern) {
-        switch (intern) { case 2: return 1; case 1: return 5; default: return 9; }
+        switch (intern) {
+        case 2:
+            return 1;
+        case 1:
+            return 5;
+        default:
+            return 9;
+        }
     }
 
-    // Sonderzeichen in iCal-Text-Properties escapen (RFC 5545)
     function _icalEscapen(text) {
         return String(text || "")
             .replace(/\\/g, "\\\\")
-            .replace(/;/g,  "\\;")
-            .replace(/,/g,  "\\,")
+            .replace(/;/g, "\\;")
+            .replace(/,/g, "\\,")
             .replace(/\n/g, "\\n")
             .replace(/\r/g, "");
     }
 
-    // RFC 5545: Zeilen auf 75 Zeichen falten (CRLF + Leerzeichen)
     function _falteLinie(line) {
-        if (line.length <= 75) return line;
+        if (line.length <= 75) {
+            return line;
+        }
+
         let result = line.substring(0, 75);
-        let rest   = line.substring(75);
+        let rest = line.substring(75);
         while (rest.length > 0) {
             result += "\r\n " + rest.substring(0, 74);
-            rest    = rest.substring(74);
+            rest = rest.substring(74);
         }
         return result;
     }
 
-    // Aufgaben-Objekt → iCal VTODO-String
     function _aufgabeZuVtodo(aufgabe) {
         const jetzt = new Date();
         const ts = jetzt.toISOString().replace(/[-:.]/g, "").substring(0, 15) + "Z";
@@ -214,13 +259,13 @@ Item {
 
         let ical = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//KDE Plasma ToDo//DE\r\n";
         ical += "BEGIN:VTODO\r\n";
-        ical += "UID:"           + uid + "\r\n";
-        ical += "DTSTAMP:"       + ts  + "\r\n";
-        ical += "LAST-MODIFIED:" + ts  + "\r\n";
+        ical += "UID:" + uid + "\r\n";
+        ical += "DTSTAMP:" + ts + "\r\n";
+        ical += "LAST-MODIFIED:" + ts + "\r\n";
         ical += _falteLinie("SUMMARY:" + _icalEscapen(aufgabe.beschreibung)) + "\r\n";
-        ical += "STATUS:"            + (aufgabe.erledigt ? "COMPLETED"  : "NEEDS-ACTION") + "\r\n";
-        ical += "PERCENT-COMPLETE:"  + (aufgabe.erledigt ? "100" : "0") + "\r\n";
-        ical += "PRIORITY:"          + _internPrioZuIcal(aufgabe.prioritaet) + "\r\n";
+        ical += "STATUS:" + (aufgabe.erledigt ? "COMPLETED" : "NEEDS-ACTION") + "\r\n";
+        ical += "PERCENT-COMPLETE:" + (aufgabe.erledigt ? "100" : "0") + "\r\n";
+        ical += "PRIORITY:" + _internPrioZuIcal(aufgabe.prioritaet) + "\r\n";
         if (aufgabe.faelligkeit) {
             ical += "DUE;VALUE=DATE:" + _isoDatumZuIcal(aufgabe.faelligkeit) + "\r\n";
         }
@@ -231,148 +276,266 @@ Item {
         return ical;
     }
 
-    // iCal VTODO-String → Aufgaben-Objekt (null wenn nicht parsierbar)
     function _parsiereVtodo(icalText, href, etag) {
-        // Zeilenfortsetzungen entfalten (RFC 5545)
         const text = icalText
-            .replace(/\r\n/g, "\n").replace(/\r/g, "\n")
+            .replace(/\r\n/g, "\n")
+            .replace(/\r/g, "\n")
             .replace(/\n[ \t]/g, "");
         const zeilen = text.split("\n");
 
-        let uid = "", zusammenfassung = "", prioritaet = "",
-            faelligkeit = "", status = "", unterJson = "";
+        let uid = "";
+        let zusammenfassung = "";
+        let prioritaet = "";
+        let faelligkeit = "";
+        let status = "";
+        let unterJson = "";
         let inVtodo = false;
 
-        for (const z of zeilen) {
-            const l = z.trim();
-            if (l === "BEGIN:VTODO")          { inVtodo = true;  continue; }
-            if (l === "END:VTODO")            { break; }
-            if (!inVtodo)                     continue;
+        for (let i = 0; i < zeilen.length; i++) {
+            const l = zeilen[i].trim();
+            if (l === "BEGIN:VTODO") {
+                inVtodo = true;
+                continue;
+            }
+            if (l === "END:VTODO") {
+                break;
+            }
+            if (!inVtodo) {
+                continue;
+            }
 
-            if      (l.startsWith("UID:"))               uid           = l.substring(4).trim();
-            else if (l.startsWith("SUMMARY:"))            zusammenfassung = l.substring(8)
-                .replace(/\\n/g, "\n").replace(/\\,/g, ",")
-                .replace(/\\;/g, ";").replace(/\\\\/g, "\\").trim();
-            else if (l.startsWith("PRIORITY:"))          prioritaet    = l.substring(9).trim();
-            else if (l.startsWith("DUE;VALUE=DATE:"))    faelligkeit   = _icalDatumZuIso(l.substring(15).trim());
-            else if (l.startsWith("DUE:"))               faelligkeit   = _icalDatumZuIso(l.substring(4).trim());
-            else if (l.startsWith("STATUS:"))            status        = l.substring(7).trim();
-            else if (l.startsWith("PERCENT-COMPLETE:"))  { if ((parseInt(l.substring(17)) || 0) === 100) status = "COMPLETED"; }
-            else if (l.startsWith("X-KDE-SUBTASKS:"))   unterJson     = l.substring(15).trim();
+            if (l.startsWith("UID:")) {
+                uid = l.substring(4).trim();
+            } else if (l.startsWith("SUMMARY:")) {
+                zusammenfassung = l.substring(8)
+                    .replace(/\\n/g, "\n")
+                    .replace(/\\,/g, ",")
+                    .replace(/\\;/g, ";")
+                    .replace(/\\\\/g, "\\")
+                    .trim();
+            } else if (l.startsWith("PRIORITY:")) {
+                prioritaet = l.substring(9).trim();
+            } else if (l.startsWith("DUE;VALUE=DATE:")) {
+                faelligkeit = _icalDatumZuIso(l.substring(15).trim());
+            } else if (l.startsWith("DUE:")) {
+                faelligkeit = _icalDatumZuIso(l.substring(4).trim());
+            } else if (l.startsWith("STATUS:")) {
+                status = l.substring(7).trim();
+            } else if (l.startsWith("PERCENT-COMPLETE:")) {
+                if ((parseInt(l.substring(17)) || 0) === 100) {
+                    status = "COMPLETED";
+                }
+            } else if (l.startsWith("X-KDE-SUBTASKS:")) {
+                unterJson = l.substring(15).trim();
+            }
         }
 
-        if (!uid || !zusammenfassung) return null;
+        if (!uid || !zusammenfassung) {
+            return null;
+        }
 
         let untereintraege = [];
         if (unterJson) {
-            try { untereintraege = JSON.parse(unterJson); } catch (e) { untereintraege = []; }
+            try {
+                untereintraege = JSON.parse(unterJson);
+            } catch (error) {
+                untereintraege = [];
+            }
         }
 
         return {
-            beschreibung:  zusammenfassung,
-            prioritaet:    _icalPrioZuIntern(prioritaet),
-            faelligkeit:   faelligkeit,
-            erledigt:      (status === "COMPLETED"),
+            beschreibung: zusammenfassung,
+            prioritaet: _icalPrioZuIntern(prioritaet),
+            faelligkeit: faelligkeit,
+            erledigt: status === "COMPLETED",
             untereintraege: untereintraege,
-            uid:           uid,
-            etag:          String(etag || "").replace(/"/g, ""),
-            caldavHref:    href
+            uid: uid,
+            etag: String(etag || "").replace(/"/g, ""),
+            caldavHref: href
         };
     }
 
-    // CalDAV Multistatus-XML → Array von Aufgaben-Objekten
+    function _xmlEntityDekodieren(text) {
+        return String(text || "")
+            .replace(/&amp;/g, "&")
+            .replace(/&lt;/g, "<")
+            .replace(/&gt;/g, ">")
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'");
+    }
+
     function _parsiereMultistatus(xmlText) {
         const aufgaben = [];
-        // Namespace-agnostische Regex für <X:response> Blöcke
         const respRegex = /<[^:>\s]*:?response[^>]*>([\s\S]*?)<\/[^:>\s]*:?response>/g;
-        let m;
-        while ((m = respRegex.exec(xmlText)) !== null) {
-            const block = m[1];
+        let match;
+
+        while ((match = respRegex.exec(xmlText)) !== null) {
+            const block = match[1];
             const hrefM = block.match(/<[^:>\s]*:?href[^>]*>\s*(.*?)\s*<\/[^:>\s]*:?href>/);
-            if (!hrefM || !hrefM[1].endsWith(".ics")) continue;
-            const href  = hrefM[1].trim();
+            if (!hrefM || !hrefM[1].endsWith(".ics")) {
+                continue;
+            }
+
+            const href = _xmlEntityDekodieren(hrefM[1].trim());
             const etagM = block.match(/<[^:>\s]*:?getetag[^>]*>\s*"?([^"<\s]*)"?\s*<\/[^:>\s]*:?getetag>/);
-            const etag  = etagM ? etagM[1] : "";
-            const calM  = block.match(/<[^:>\s]*:?calendar-data[^>]*>([\s\S]*?)<\/[^:>\s]*:?calendar-data>/);
-            if (!calM) continue;
-            const ical  = calM[1]
-                .replace(/&amp;/g, "&").replace(/&lt;/g, "<")
-                .replace(/&gt;/g,  ">").replace(/&quot;/g, '"');
-            const aufgabe = root._parsiereVtodo(ical, href, etag);
-            if (aufgabe) aufgaben.push(aufgabe);
+            const calM = block.match(/<[^:>\s]*:?calendar-data[^>]*>([\s\S]*?)<\/[^:>\s]*:?calendar-data>/);
+            if (!calM) {
+                continue;
+            }
+
+            const aufgabe = _parsiereVtodo(_xmlEntityDekodieren(calM[1]), href, etagM ? etagM[1] : "");
+            if (aufgabe) {
+                aufgaben.push(aufgabe);
+            }
         }
+
         return aufgaben;
     }
 
-    // Baut das Shell-Skript: PUT alle lokalen Aufgaben → REPORT (Download)
-    function _baueSyncScript(aufgaben) {
-        const calUrl = _caldavUrl();
-        let s = "#!/bin/sh\n";
-        s += "NC_USER=" + _sq(benutzername) + "\n";
-        s += "NC_PASS=" + _sq(_passwort)    + "\n";
-        s += "CAL_URL=" + _sq(calUrl)       + "\n\n";
+    function _request(method, url, body, extraHeaders, callback) {
+        const request = new XMLHttpRequest();
+        request.open(method, url);
+        request.setRequestHeader("Authorization", _authHeader());
+        request.setRequestHeader("Accept", "text/calendar, application/xml, text/xml, */*");
 
-        // Jede Aufgabe als iCal → Base64 → Temp-Datei → PUT
-        for (let i = 0; i < aufgaben.length; i++) {
-            const a    = aufgaben[i];
-            const ical = _aufgabeZuVtodo(a);
-            const b64  = _zumBase64(ical);
-            const uid  = a.uid;
-            const tmp  = "/tmp/nc_todo_" + uid.replace(/-/g, "") + ".ics";
-
-            s += "printf '%s' " + _sq(b64) + " | base64 -d > " + _sq(tmp) + "\n";
-            s += "curl -sf -o /dev/null -u \"${NC_USER}:${NC_PASS}\" -X PUT";
-            s += " -H 'Content-Type: text/calendar; charset=utf-8'";
-            if (a.etag) {
-                // If-Match verhindert versehentliches Überschreiben bei Konflikt
-                s += " -H " + _sq("If-Match: \"" + a.etag + "\"");
+        if (extraHeaders) {
+            const headerNamen = Object.keys(extraHeaders);
+            for (let i = 0; i < headerNamen.length; i++) {
+                request.setRequestHeader(headerNamen[i], extraHeaders[headerNamen[i]]);
             }
-            s += " --data-binary @" + _sq(tmp) + " \"${CAL_URL}" + uid + ".ics\"";
-            s += " || true\n";   // 412 Precondition Failed ignorieren
-            s += "rm -f " + _sq(tmp) + "\n";
         }
 
-        // CalDAV REPORT: alle VTODO-Einträge vom Server laden
+        request.onreadystatechange = function() {
+            if (request.readyState !== XMLHttpRequest.DONE) {
+                return;
+            }
+            callback({
+                status: request.status,
+                text: request.responseText,
+                etag: request.getResponseHeader("ETag") || ""
+            });
+        };
+
+        request.send(body === undefined ? null : body);
+    }
+
+    function _syncLokaleAufgabe(index, lokal, konfliktUids, serverStand) {
+        if (index >= lokal.length) {
+            _ladeServerAufgaben(lokal, konfliktUids, serverStand);
+            return;
+        }
+
+        const aufgabe = lokal[index];
+        const url = _caldavUrl() + encodeURIComponent(aufgabe.uid) + ".ics";
+        const headers = {
+            "Content-Type": "text/calendar; charset=utf-8"
+        };
+
+        if (aufgabe.etag) {
+            headers["If-Match"] = '"' + aufgabe.etag + '"';
+        } else {
+            headers["If-None-Match"] = "*";
+        }
+
+        _request("PUT", url, _aufgabeZuVtodo(aufgabe), headers, function(result) {
+            if (result.status === 200 || result.status === 201 || result.status === 204) {
+                _syncLokaleAufgabe(index + 1, lokal, konfliktUids, serverStand);
+                return;
+            }
+
+            if (result.status === 412) {
+                konfliktUids.push(aufgabe.uid);
+                _syncLokaleAufgabe(index + 1, lokal, konfliktUids, serverStand);
+                return;
+            }
+
+            _fehlschlag("Sync fehlgeschlagen (PUT " + result.status + ")");
+        });
+    }
+
+    function _ladeServerAufgaben(lokal, konfliktUids, serverStand) {
         const reportXml =
             '<c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">'
             + '<d:prop><d:getetag/><c:calendar-data/></d:prop>'
-            + '<c:filter><c:comp-filter name="VCALENDAR">'
-            + '<c:comp-filter name="VTODO"/>'
-            + '</c:comp-filter></c:filter>'
+            + '<c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VTODO"/></c:comp-filter></c:filter>'
             + '</c:calendar-query>';
 
-        s += "\ncurl -s -w '\\n__STATUS__%{http_code}'";
-        s += " -u \"${NC_USER}:${NC_PASS}\"";
-        s += " -X REPORT";
-        s += " -H 'Content-Type: application/xml; charset=utf-8'";
-        s += " -H 'Depth: 1'";
-        s += " --data " + _sq(reportXml);
-        s += " \"${CAL_URL}\"\n";
-        return s;
+        _request("REPORT", _caldavUrl(), reportXml, {
+            "Content-Type": "application/xml; charset=utf-8",
+            "Depth": "1"
+        }, function(result) {
+            if (result.status < 200 || result.status > 299) {
+                _fehlschlag("Sync fehlgeschlagen (REPORT " + result.status + ")");
+                return;
+            }
+
+            const serverAufgaben = _parsiereMultistatus(result.text);
+            const merged = _mergeServerStand(lokal, serverAufgaben);
+            const konfliktAnzahl = konfliktUids.length;
+
+            root.synchronisiertGerade = false;
+            root.hatFehler = false;
+            root.statusNachricht = konfliktAnzahl > 0
+                ? konfliktAnzahl + " Konflikte erkannt, Server-Stand uebernommen"
+                : merged.length + " Aufgaben synchronisiert";
+            root.aufgabenEmpfangen(merged);
+            root.synchronisationFertig(true, root.statusNachricht);
+        });
     }
 
-    // -------------------------------------------------------------------
-    // DataSource-Instanzen (P5Support Executable Engine)
-    // -------------------------------------------------------------------
+    function _mergeServerStand(lokal, serverAufgaben) {
+        const serverNachUid = {};
+        const merged = [];
+
+        for (let i = 0; i < serverAufgaben.length; i++) {
+            serverNachUid[serverAufgaben[i].uid] = serverAufgaben[i];
+        }
+
+        for (let i = 0; i < lokal.length; i++) {
+            const lokalerEintrag = lokal[i];
+            if (serverNachUid[lokalerEintrag.uid]) {
+                merged.push(serverNachUid[lokalerEintrag.uid]);
+                delete serverNachUid[lokalerEintrag.uid];
+            } else {
+                merged.push(lokalerEintrag);
+            }
+        }
+
+        const restUids = Object.keys(serverNachUid);
+        for (let i = 0; i < restUids.length; i++) {
+            merged.push(serverNachUid[restUids[i]]);
+        }
+
+        return merged;
+    }
+
+    function _fehlschlag(nachricht) {
+        root.synchronisiertGerade = false;
+        root.hatFehler = true;
+        root.statusNachricht = nachricht;
+        root.synchronisationFertig(false, nachricht);
+    }
 
     P5Support.DataSource {
         id: passwortLadenEngine
         engine: "executable"
+
         onNewData: function(src, data) {
             disconnectSource(src);
             removeSource(src);
+
             const code = data["exit code"] !== undefined ? data["exit code"] : 1;
-            const pw   = String(data["stdout"] || "").trim();
+            const pw = String(data["stdout"] || "").trim();
             if (code === 0 && pw.length > 0) {
-                root._passwort      = pw;
+                root._passwort = pw;
                 root.passwortGeladen = true;
-                root.hatFehler      = false;
+                root.hatFehler = false;
                 root.statusNachricht = "";
             } else {
-                root._passwort      = "";
+                root._passwort = "";
                 root.passwortGeladen = false;
-                root.hatFehler      = true;
-                root.statusNachricht = "Passwort nicht im Schlüsselbund – bitte in Einstellungen eingeben";
+                root.hatFehler = true;
+                root.statusNachricht = "Passwort nicht im Schluesselbund - bitte eingeben";
             }
             root.passwortLadeFertig(root.passwortGeladen);
         }
@@ -381,69 +544,17 @@ Item {
     P5Support.DataSource {
         id: passwortSpeichernEngine
         engine: "executable"
+
         onNewData: function(src, data) {
             disconnectSource(src);
             removeSource(src);
+
             const code = data["exit code"] !== undefined ? data["exit code"] : 1;
             if (code !== 0) {
-                root.statusNachricht = "Passwort konnte nicht im Schlüsselbund gespeichert werden";
+                root.passwortGeladen = false;
                 root.hatFehler = true;
+                root.statusNachricht = "Passwort konnte nicht gespeichert werden";
             }
-        }
-    }
-
-    P5Support.DataSource {
-        id: syncEngine
-        engine: "executable"
-        onNewData: function(src, data) {
-            disconnectSource(src);
-            removeSource(src);
-            root.synchronisiertGerade = false;
-
-            const code   = data["exit code"] !== undefined ? data["exit code"] : 1;
-            const ausgabe = String(data["stdout"] || "").trim();
-
-            // HTTP-Statuscode aus Ausgabe extrahieren
-            const statusM  = ausgabe.match(/__STATUS__(\d+)\s*$/m);
-            const httpCode  = statusM ? parseInt(statusM[1]) : 0;
-            const xmlBody   = ausgabe.replace(/\n?__STATUS__\d+\s*$/, "").trim();
-
-            if (code !== 0 || (httpCode !== 0 && (httpCode < 200 || httpCode > 299))) {
-                root.hatFehler      = true;
-                root.statusNachricht = "Sync fehlgeschlagen (HTTP " + (httpCode || code) + ")";
-                root.synchronisationFertig(false, root.statusNachricht);
-                return;
-            }
-
-            // Server-Aufgaben parsen
-            const serverAufgaben = root._parsiereMultistatus(xmlBody);
-
-            // Merge: lokale Aufgaben behalten, Etags aktualisieren,
-            // server-exklusive Aufgaben lokal hinzufügen
-            const lokal    = root._syncAufgaben.slice();
-            const lokaleUids = {};
-            for (let i = 0; i < lokal.length; i++) lokaleUids[lokal[i].uid] = true;
-
-            for (let i = 0; i < serverAufgaben.length; i++) {
-                const srv = serverAufgaben[i];
-                let gefunden = false;
-                for (let j = 0; j < lokal.length; j++) {
-                    if (lokal[j].uid === srv.uid) {
-                        // Etag und Href vom Server aktualisieren
-                        lokal[j].etag       = srv.etag;
-                        lokal[j].caldavHref = srv.caldavHref;
-                        gefunden = true;
-                        break;
-                    }
-                }
-                // Aufgabe nur auf Server → lokal hinzufügen
-                if (!gefunden) lokal.push(srv);
-            }
-
-            root.hatFehler      = false;
-            root.statusNachricht = lokal.length + " Aufgaben synchronisiert";
-            root.aufgabenEmpfangen(lokal);
-            root.synchronisationFertig(true, root.statusNachricht);
         }
     }
 }
