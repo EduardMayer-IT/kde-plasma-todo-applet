@@ -33,6 +33,9 @@ PlasmoidItem {
         aufgabenModell.aufgabeHinzufuegen(text, neueAufgabePrioritaet, "", "");
         neueAufgabeEingabe.text = "";
         neueAufgabePrioritaet = 0;
+        if (datenSync.hatSichereKonfiguration) {
+            datenSync.synchronisiere(aufgabenModell._kopiereAlsArray());
+        }
     }
 
     function prioritaetFarbe(prioritaet) {
