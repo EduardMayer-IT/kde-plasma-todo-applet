@@ -129,7 +129,15 @@ Item {
     }
 
     function _baseUrl() {
-        return String(nextcloudUrl || "").trim().replace(/\/+$/, "");
+        const url = String(nextcloudUrl || "").trim();
+        try {
+            // Extrahiert nur Protocol + Host aus beliebiger URL
+            // Z.B.: "https://cloud.zakyx.de/apps/tasks/..." → "https://cloud.zakyx.de"
+            const match = url.match(/^(https?:\/\/[^\/]+)/i);
+            return match ? match[1] : url.replace(/\/+$/, "");
+        } catch (error) {
+            return url.replace(/\/+$/, "");
+        }
     }
 
     function _normalisiereKalenderPfad(pfad) {
