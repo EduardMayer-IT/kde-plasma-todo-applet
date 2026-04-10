@@ -64,55 +64,34 @@ PlasmoidItem {
             Layout.fillWidth: true
             spacing: Kirigami.Units.smallSpacing * 0.4
 
-            Repeater {
-                model: [
-                    // qmllint disable unqualified
-                    { label: i18n("Alle"),      modus: 0 },
-                    { label: i18n("Offen"),     modus: 1 },
-                    { label: i18n("Erledigt"),  modus: 2 }
-                    // qmllint enable unqualified
-                ]
-                delegate: QtControls.Button {
-                    required property var modelData
-                    text: modelData.label
-                    font.pixelSize: Kirigami.Units.gridUnit * 0.52
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: Kirigami.Units.gridUnit * 0.82
-                    flat: root.filterModus !== modelData.modus
-                    highlighted: root.filterModus === modelData.modus
-                    onClicked: root.filterModus = modelData.modus
+            QtControls.ComboBox {
+                id: filterMenue
+                Layout.fillWidth: true
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 0.9
+                // qmllint disable unqualified
+                model: [i18n("Alle"), i18n("Offen"), i18n("Erledigt")]
+                // qmllint enable unqualified
+                currentIndex: root.filterModus
+                onActivated: function(index) {
+                    root.filterModus = index;
                 }
             }
 
-            Rectangle {
-                width: 1
-                Layout.fillHeight: true
-                color: Qt.rgba(1, 1, 1, 0.15)
-            }
-
-            QtControls.Button {
-                id: sortierButton
+            QtControls.ComboBox {
+                id: sortierMenue
+                Layout.fillWidth: true
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 0.9
                 // qmllint disable unqualified
-                text: root.sortierModus === 1 ? "↕P" : (root.sortierModus === 2 ? "↕D" : "↕")
+                model: [i18n("Sortierung: Standard"), i18n("Sortierung: Priorität"), i18n("Sortierung: Datum")]
                 // qmllint enable unqualified
-                font.pixelSize: Kirigami.Units.gridUnit * 0.52
-                Layout.preferredHeight: Kirigami.Units.gridUnit * 0.82
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 1.4
-                highlighted: root.sortierModus > 0
-                onClicked: {
-                    root.sortierModus = (root.sortierModus + 1) % 3;
-                    if (root.sortierModus === 1) {
+                currentIndex: root.sortierModus
+                onActivated: function(index) {
+                    root.sortierModus = index;
+                    if (index === 1) {
                         aufgabenModell.sortierenNachPrioritaet();
-                    } else if (root.sortierModus === 2) {
+                    } else if (index === 2) {
                         aufgabenModell.sortierenNachDatum();
                     }
-                }
-                QtControls.ToolTip {
-                    // qmllint disable unqualified
-                    text: root.sortierModus === 1 ? i18n("Sortiert nach Priorität") : (root.sortierModus === 2 ? i18n("Sortiert nach Datum") : i18n("Sortierung: Standard"))
-                    // qmllint enable unqualified
-                    delay: 300
-                    visible: sortierButton.hovered
                 }
             }
         }
