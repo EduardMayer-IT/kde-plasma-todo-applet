@@ -13,5 +13,8 @@
         <entry name="nextcloudUsername" type="String">
             <default></default>
         </entry>
+        <entry name="nextcloudKalenderPfad" type="String">
+            <default>tasks</default>
+        </entry>
     </group>
 </kcfg>

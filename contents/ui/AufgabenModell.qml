@@ -236,10 +236,29 @@ ListModel {
             const e = get(i);
             arr.push(erzeugeListeneintrag(
                 e.beschreibung, e.prioritaet, e.faelligkeit,
-                klonUntereintraege(i), e.erledigt
+                klonUntereintraege(i), e.erledigt,
+                e.uid || "", e.etag || "", e.caldavHref || ""
             ));
         }
         return arr;
+    }
+
+    function ausSyncDatenErsetzen(aufgaben) {
+        if (!Array.isArray(aufgaben)) return;
+        _laedtAusSpeicher = true;
+        clear();
+        for (let i = 0; i < aufgaben.length; i++) {
+            const a = aufgaben[i];
+            if (!a || !a.beschreibung) continue;
+            const untereintraege = Array.isArray(a.untereintraege) ? a.untereintraege : [];
+            append(erzeugeListeneintrag(
+                a.beschreibung, a.prioritaet, a.faelligkeit,
+                untereintraege, a.erledigt,
+                a.uid || "", a.etag || "", a.caldavHref || ""
+            ));
+        }
+        _laedtAusSpeicher = false;
+        persistiere();
     }
 
     function sortierenNachPrioritaet() {
@@ -366,7 +385,10 @@ ListModel {
             eintrag.prioritaet,
             eintrag.faelligkeit,
             liste,
-            eintrag.erledigt
+            eintrag.erledigt,
+            eintrag.uid || "",
+            eintrag.etag || "",
+            eintrag.caldavHref || ""
         ));
     }
 
@@ -403,13 +425,16 @@ ListModel {
         return [];
     }
 
-    function erzeugeListeneintrag(beschreibung, prioritaet, faelligkeit, untereintraege, erledigt) {
+    function erzeugeListeneintrag(beschreibung, prioritaet, faelligkeit, untereintraege, erledigt, uid, etag, caldavHref) {
         return {
             beschreibung: (beschreibung || "").trim(),
             prioritaet: AufgabenLogik.istGueltigePrioritaet(prioritaet) ? prioritaet : 0,
             faelligkeit: typeof faelligkeit === "string" ? faelligkeit : "",
             untereintraege: Array.isArray(untereintraege) ? untereintraege : normalisiereListe(untereintraege),
-            erledigt: !!erledigt
+            erledigt: !!erledigt,
+            uid: typeof uid === "string" ? uid : "",
+            etag: typeof etag === "string" ? etag : "",
+            caldavHref: typeof caldavHref === "string" ? caldavHref : ""
         };
     }
 

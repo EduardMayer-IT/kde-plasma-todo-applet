@@ -187,6 +187,35 @@ PlasmoidItem {
                 // qmllint enable unqualified
                 onClicked: exportDialog.open()
             }
+
+            QtControls.Button {
+                id: syncButton
+                Layout.fillWidth: true
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 0.9
+                font.pixelSize: Kirigami.Units.gridUnit * 0.6
+                // qmllint disable unqualified
+                text: datenSync.synchronisiertGerade ? i18n("Sync…") : i18n("☁ Sync")
+                // qmllint enable unqualified
+                onClicked: syncMenu.popup(syncButton, 0, syncButton.height)
+
+                QtControls.Menu {
+                    id: syncMenu
+                    // qmllint disable unqualified
+                    QtControls.MenuItem {
+                        text: i18n("Jetzt synchronisieren")
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.62
+                        enabled: datenSync.kannSynchronisieren && !datenSync.synchronisiertGerade
+                        onTriggered: datenSync.synchronisiere(aufgabenModell._kopiereAlsArray())
+                    }
+                    QtControls.MenuSeparator {}
+                    QtControls.MenuItem {
+                        text: i18n("Einstellungen…")
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.62
+                        onTriggered: syncEinstellungenDialog.open()
+                    }
+                    // qmllint enable unqualified
+                }
+            }
         }
 
         Rectangle {
@@ -372,8 +401,18 @@ PlasmoidItem {
     DatenSynchronisierer {
         id: datenSync
         // qmllint disable unqualified
-        nextcloudUrl: Plasmoid.configuration.nextcloudUrl || ""
-        benutzername: Plasmoid.configuration.nextcloudUsername || ""
+        nextcloudUrl:   Plasmoid.configuration.nextcloudUrl          || ""
+        benutzername:   Plasmoid.configuration.nextcloudUsername      || ""
+        kalenderPfad:   Plasmoid.configuration.nextcloudKalenderPfad  || "tasks"
+
+        onAufgabenEmpfangen: function(aufgaben) {
+            aufgabenModell.ausSyncDatenErsetzen(aufgaben);
+        }
+        onSynchronisationFertig: function(erfolg, nachricht) {
+            syncHinweis.title = erfolg ? i18n("Nextcloud Sync") : i18n("Sync fehlgeschlagen");
+            syncHinweis.text  = nachricht;
+            syncHinweis.sendEvent();
+        }
         // qmllint enable unqualified
     }
 
@@ -390,6 +429,13 @@ PlasmoidItem {
         componentName: "plasma_applet_com.meinprojekt.aufgaben"
         eventId: "faelligkeit"
         iconName: "document-save"
+    }
+
+    Notification {
+        id: syncHinweis
+        componentName: "plasma_applet_com.meinprojekt.aufgaben"
+        eventId: "faelligkeit"
+        iconName: "cloudstatus"
     }
 
     QtDialogs.FileDialog {
@@ -428,6 +474,130 @@ PlasmoidItem {
 
             disconnectSource(sourceName);
             removeSource(sourceName);
+        }
+    }
+
+    Component.onCompleted: {
+        // Passwort beim Start aus dem Schlüsselbund laden (KeePassXC / KWallet)
+        datenSync.ladePasswort();
+    }
+
+    // -------------------------------------------------------------
+    // Nextcloud-Einstellungen Dialog
+    // -------------------------------------------------------------
+    Kirigami.Dialog {
+        id: syncEinstellungenDialog
+        // qmllint disable unqualified
+        title: i18n("Nextcloud Einstellungen")
+        // qmllint enable unqualified
+        standardButtons: Kirigami.Dialog.Ok | Kirigami.Dialog.Cancel
+        padding: Kirigami.Units.largeSpacing
+
+        property string _url:      ""
+        property string _user:     ""
+        property string _pw:       ""
+        property string _kalender: ""
+        property bool   _pwSichtbar: false
+
+        onOpened: {
+            // qmllint disable unqualified
+            _url      = Plasmoid.configuration.nextcloudUrl         || "";
+            _user     = Plasmoid.configuration.nextcloudUsername     || "";
+            _pw       = "";
+            _kalender = Plasmoid.configuration.nextcloudKalenderPfad || "tasks";
+            // qmllint enable unqualified
+            _pwSichtbar = false;
+        }
+
+        onAccepted: {
+            // qmllint disable unqualified
+            Plasmoid.configuration.nextcloudUrl          = syncEinstellungenDialog._url;
+            Plasmoid.configuration.nextcloudUsername     = syncEinstellungenDialog._user;
+            Plasmoid.configuration.nextcloudKalenderPfad = syncEinstellungenDialog._kalender;
+            if (syncEinstellungenDialog._pw.length > 0) {
+                datenSync.speicherePasswort(syncEinstellungenDialog._pw);
+            } else {
+                // Bereits gespeichertes Passwort neu laden
+                datenSync.ladePasswort();
+            }
+            // qmllint enable unqualified
+        }
+
+        ColumnLayout {
+            spacing: Kirigami.Units.smallSpacing
+            width: Kirigami.Units.gridUnit * 17
+
+            Kirigami.FormLayout {
+                Layout.fillWidth: true
+
+                QtControls.TextField {
+                    id: dlgUrlFeld
+                    Kirigami.FormData.label: qsTr("Server-URL:")
+                    Layout.fillWidth: true
+                    font.pixelSize: Kirigami.Units.gridUnit * 0.62
+                    placeholderText: "https://nextcloud.example.com"
+                    text: syncEinstellungenDialog._url
+                    onTextChanged: syncEinstellungenDialog._url = text
+                }
+
+                QtControls.TextField {
+                    id: dlgUserFeld
+                    Kirigami.FormData.label: qsTr("Benutzername:")
+                    Layout.fillWidth: true
+                    font.pixelSize: Kirigami.Units.gridUnit * 0.62
+                    text: syncEinstellungenDialog._user
+                    onTextChanged: syncEinstellungenDialog._user = text
+                }
+
+                RowLayout {
+                    Kirigami.FormData.label: qsTr("App-Passwort:")
+                    Layout.fillWidth: true
+                    spacing: Kirigami.Units.smallSpacing * 0.5
+
+                    QtControls.TextField {
+                        id: dlgPwFeld
+                        Layout.fillWidth: true
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.62
+                        echoMode: syncEinstellungenDialog._pwSichtbar
+                                  ? TextInput.Normal : TextInput.Password
+                        placeholderText: qsTr("(leer lassen = unverändert)")
+                        text: syncEinstellungenDialog._pw
+                        onTextChanged: syncEinstellungenDialog._pw = text
+                    }
+                    QtControls.Button {
+                        Layout.preferredWidth:  Kirigami.Units.gridUnit * 1.4
+                        Layout.preferredHeight: Kirigami.Units.gridUnit * 1.4
+                        icon.name: syncEinstellungenDialog._pwSichtbar ? "hint" : "password-show-off"
+                        onClicked: syncEinstellungenDialog._pwSichtbar = !syncEinstellungenDialog._pwSichtbar
+                        QtControls.ToolTip.text: qsTr("Passwort anzeigen")
+                        QtControls.ToolTip.visible: hovered
+                        QtControls.ToolTip.delay: 300
+                    }
+                }
+
+                QtControls.TextField {
+                    id: dlgKalenderFeld
+                    Kirigami.FormData.label: qsTr("Kalender:")
+                    Layout.fillWidth: true
+                    font.pixelSize: Kirigami.Units.gridUnit * 0.62
+                    placeholderText: "tasks"
+                    text: syncEinstellungenDialog._kalender
+                    onTextChanged: syncEinstellungenDialog._kalender = text
+                }
+            }
+
+            QtControls.Label {
+                Layout.fillWidth: true
+                visible: datenSync.hatFehler || !datenSync.kannSynchronisieren
+                // qmllint disable unqualified
+                text: datenSync.passwortGeladen
+                    ? ""
+                    : i18n("⚠ Passwort nicht geladen – nach Speichern wird neu geladen")
+                // qmllint enable unqualified
+                font.pixelSize: Kirigami.Units.gridUnit * 0.56
+                wrapMode: Text.Wrap
+                color: Kirigami.Theme.neutralTextColor
+            }
         }
     }
 

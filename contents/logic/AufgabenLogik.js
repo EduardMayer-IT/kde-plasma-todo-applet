@@ -61,7 +61,10 @@ function normalisiereAufgabe(eintrag) {
         prioritaet: istGueltigePrioritaet(eintrag.prioritaet) ? eintrag.prioritaet : 0,
         faelligkeit: typeof eintrag.faelligkeit === "string" ? eintrag.faelligkeit : "",
         untereintraege: untereintraege,
-        erledigt: !!eintrag.erledigt
+        erledigt: !!eintrag.erledigt,
+        uid: typeof eintrag.uid === "string" ? eintrag.uid : "",
+        etag: typeof eintrag.etag === "string" ? eintrag.etag : "",
+        caldavHref: typeof eintrag.caldavHref === "string" ? eintrag.caldavHref : ""
     };
 }
 
@@ -106,4 +109,11 @@ function untereintraegeAusText(text) {
 
 function istGueltigePrioritaet(prioritaet) {
     return prioritaet === 0 || prioritaet === 1 || prioritaet === 2;
+}
+
+function generiereUuid() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
 }
