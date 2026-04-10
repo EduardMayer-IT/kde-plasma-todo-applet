@@ -141,8 +141,7 @@ PlasmoidItem {
 
             QtControls.Button {
                 id: sortierButton
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 3.8
-                Layout.maximumWidth: Kirigami.Units.gridUnit * 3.8
+                Layout.fillWidth: true
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 0.9
                 font.pixelSize: Kirigami.Units.gridUnit * 0.62
                 // qmllint disable unqualified
@@ -180,9 +179,8 @@ PlasmoidItem {
 
             QtControls.Button {
                 id: exportButton
+                Layout.fillWidth: true
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 0.9
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 2.5
-                Layout.maximumWidth: Kirigami.Units.gridUnit * 2.5
                 font.pixelSize: Kirigami.Units.gridUnit * 0.6
                 // qmllint disable unqualified
                 text: i18n("Export")
