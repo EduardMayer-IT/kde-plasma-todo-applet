@@ -141,11 +141,12 @@ PlasmoidItem {
 
             QtControls.Button {
                 id: sortierButton
-                Layout.fillWidth: true
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 3.8
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 3.8
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 0.9
                 font.pixelSize: Kirigami.Units.gridUnit * 0.62
                 // qmllint disable unqualified
-                text: [i18n("Sortierung: Standard"), i18n("Sortierung: Priorität"), i18n("Sortierung: Datum")][root.sortierModus]
+                text: [i18n("Sort: Std"), i18n("Sort: Prio"), i18n("Sort: Datum")][root.sortierModus]
                 // qmllint enable unqualified
                 onClicked: sortierMenu.popup(sortierButton, 0, sortierButton.height)
 
@@ -180,8 +181,9 @@ PlasmoidItem {
             QtControls.Button {
                 id: exportButton
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 0.9
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 1.9
-                font.pixelSize: Kirigami.Units.gridUnit * 0.58
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 2.5
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 2.5
+                font.pixelSize: Kirigami.Units.gridUnit * 0.6
                 // qmllint disable unqualified
                 text: i18n("Export")
                 // qmllint enable unqualified
