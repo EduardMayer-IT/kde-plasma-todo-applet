@@ -23,6 +23,7 @@ PlasmoidItem {
     property int sortierModus: 0  // 0=standard, 1=prioritaet, 2=datum
     property string letzterExportPfad: ""
     property bool autoSyncAusstehend: false
+    property bool autoSyncUnterdrueckt: false
     // qmllint enable unqualified
 
     implicitWidth: Kirigami.Units.gridUnit * 15.5
@@ -34,7 +35,6 @@ PlasmoidItem {
         aufgabenModell.aufgabeHinzufuegen(text, neueAufgabePrioritaet, "", "");
         neueAufgabeEingabe.text = "";
         neueAufgabePrioritaet = 0;
-        planeAutoSync();
     }
 
     function planeAutoSync() {
@@ -276,42 +276,34 @@ PlasmoidItem {
 
                     onErledigtGewechselt: function(istErledigt) {
                         aufgabenModell.erledigtSetzen(index, istErledigt);
-                        root.planeAutoSync();
                     }
 
                     onPrioritaetGewechselt: function(neuePrioritaet) {
                         aufgabenModell.prioritaetSetzen(index, neuePrioritaet);
-                        root.planeAutoSync();
                     }
 
                     onBeschreibungGewechselt: function(neueBeschreibung) {
                         aufgabenModell.beschreibungSetzen(index, neueBeschreibung);
-                        root.planeAutoSync();
                     }
 
                     onUntertextGedroppt: function(untertext) {
                         aufgabenModell.untereintragHinzufuegen(index, untertext, 0, false);
-                        root.planeAutoSync();
                     }
 
                     onUnterBeschreibungGewechselt: function(unterIndex, neuerText) {
                         aufgabenModell.untereintragBeschreibungSetzen(index, unterIndex, neuerText);
-                        root.planeAutoSync();
                     }
 
                     onUnterPrioritaetGewechselt: function(unterIndex, neuePrioritaet) {
                         aufgabenModell.untereintragPrioritaetSetzen(index, unterIndex, neuePrioritaet);
-                        root.planeAutoSync();
                     }
 
                     onUnterErledigtGewechselt: function(unterIndex, istErledigt) {
                         aufgabenModell.untereintragErledigtSetzen(index, unterIndex, istErledigt);
-                        root.planeAutoSync();
                     }
 
                     onAlsUnterzeileVerschiebenAngefragt: function(quellIndex, zielIndex) {
                         aufgabenModell.eintragAlsUnterzeileVerschieben(quellIndex, zielIndex);
-                        root.planeAutoSync();
                     }
 
                     onVerschoben: function(vonIndex, nachIndex) {
@@ -324,12 +316,10 @@ PlasmoidItem {
 
                     onLoeschenAngefragt: {
                         aufgabenModell.aufgabeLoeschen(index);
-                        root.planeAutoSync();
                     }
 
                     onFaelligkeitGewechselt: function(neueFaelligkeit) {
                         aufgabenModell.aktualisiereFaelligkeit(index, neueFaelligkeit);
-                        root.planeAutoSync();
                     }
                 }
                 
@@ -431,6 +421,9 @@ PlasmoidItem {
             // qmllint disable unqualified
             Plasmoid.configuration.tasksJson = json;
             // qmllint enable unqualified
+            if (!root.autoSyncUnterdrueckt) {
+                root.planeAutoSync();
+            }
         }
     }
 
@@ -442,7 +435,9 @@ PlasmoidItem {
         kalenderPfad:   Plasmoid.configuration.nextcloudKalenderPfad  || "tasks"
 
         onAufgabenEmpfangen: function(aufgaben) {
+            root.autoSyncUnterdrueckt = true;
             aufgabenModell.ausSyncDatenErsetzen(aufgaben);
+            root.autoSyncUnterdrueckt = false;
         }
         onSynchronisationFertig: function(erfolg, nachricht) {
             syncHinweis.title = erfolg ? i18n("Nextcloud Sync") : i18n("Sync fehlgeschlagen");
