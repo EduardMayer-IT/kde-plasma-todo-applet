@@ -176,17 +176,31 @@ Item {
     }
 
     function _utf8ZuBase64(text) {
-        try {
-            const enc = new TextEncoder();
-            const bytes = enc.encode(text);
-            let bin = "";
-            for (let i = 0; i < bytes.length; i++) {
-                bin += String.fromCharCode(bytes[i]);
+        // Reine JS-Implementierung (btoa/TextEncoder nicht in QML verfügbar)
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        // UTF-8 kodieren
+        const str = String(text || "");
+        let bytes = [];
+        for (let i = 0; i < str.length; i++) {
+            let c = str.charCodeAt(i);
+            if (c < 128) {
+                bytes.push(c);
+            } else if (c < 2048) {
+                bytes.push((c >> 6) | 192, (c & 63) | 128);
+            } else {
+                bytes.push((c >> 12) | 224, ((c >> 6) & 63) | 128, (c & 63) | 128);
             }
-            return btoa(bin);
-        } catch (error) {
-            return btoa(unescape(encodeURIComponent(text)));
         }
+        // Base64 kodieren
+        let result = "";
+        for (let i = 0; i < bytes.length; i += 3) {
+            const b0 = bytes[i], b1 = bytes[i+1] || 0, b2 = bytes[i+2] || 0;
+            result += chars[b0 >> 2];
+            result += chars[((b0 & 3) << 4) | (b1 >> 4)];
+            result += (i + 1 < bytes.length) ? chars[((b1 & 15) << 2) | (b2 >> 6)] : "=";
+            result += (i + 2 < bytes.length) ? chars[b2 & 63] : "=";
+        }
+        return result;
     }
 
     function _authHeader() {
