@@ -568,7 +568,7 @@ QtControls.ItemDelegate {
                 Layout.fillWidth: true
                 visible: !aufgabenDelegate.bearbeitungsModus
                 text: aufgabenDelegate.beschreibung
-                font.pixelSize: Kirigami.Units.gridUnit * 0.66
+                font.pixelSize: Kirigami.Units.gridUnit * 0.70
                 font.bold: true
                 font.strikeout: aufgabenDelegate.erledigt
                 wrapMode: Text.Wrap
@@ -593,7 +593,7 @@ QtControls.ItemDelegate {
                 Layout.fillWidth: true
                 visible: aufgabenDelegate.bearbeitungsModus
                 text: aufgabenDelegate.bearbeitungsText
-                font.pixelSize: Kirigami.Units.gridUnit * 0.66
+                font.pixelSize: Kirigami.Units.gridUnit * 0.70
                 selectByMouse: true
                 wrapMode: Text.Wrap
                 padding: Kirigami.Units.smallSpacing * 0.35

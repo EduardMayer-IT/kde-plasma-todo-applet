@@ -68,6 +68,7 @@ PlasmoidItem {
                 id: filterMenue
                 Layout.fillWidth: true
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 0.9
+                font.pixelSize: Kirigami.Units.gridUnit * 0.62
                 // qmllint disable unqualified
                 model: [i18n("Alle"), i18n("Offen"), i18n("Erledigt")]
                 // qmllint enable unqualified
@@ -81,6 +82,7 @@ PlasmoidItem {
                 id: sortierMenue
                 Layout.fillWidth: true
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 0.9
+                font.pixelSize: Kirigami.Units.gridUnit * 0.62
                 // qmllint disable unqualified
                 model: [i18n("Sortierung: Standard"), i18n("Sortierung: Priorität"), i18n("Sortierung: Datum")]
                 // qmllint enable unqualified
@@ -226,7 +228,7 @@ PlasmoidItem {
                     Kirigami.Units.gridUnit * 3.1,
                     Math.max(Kirigami.Units.gridUnit * 1.18, contentHeight + (padding * 2))
                 )
-                font.pixelSize: Kirigami.Units.gridUnit * 0.72
+                font.pixelSize: Kirigami.Units.gridUnit * 0.70
                 padding: Kirigami.Units.smallSpacing * 0.45
                 wrapMode: Text.Wrap
                 // qmllint disable unqualified
