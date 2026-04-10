@@ -37,6 +37,18 @@ Item {
     signal aufgabenEmpfangen(var aufgaben)
     signal synchronisationFertig(bool erfolg, string nachricht)
 
+    Component.onCompleted: {
+        if (benutzername.trim().length > 0) {
+            ladePasswort();
+        }
+    }
+
+    onBenutzernameChanged: {
+        if (benutzername.trim().length > 0) {
+            ladePasswort();
+        }
+    }
+
     function ladePasswort() {
         if (!benutzername.trim()) {
             root.hatFehler = true;
