@@ -177,6 +177,25 @@ Item {
                 return;
             }
 
+            // Fallback: Manche QML-XMLHttpRequest-Backends unterstützen DELETE nicht.
+            if (result.status === 0) {
+                _request("POST", url, "", {
+                    "X-HTTP-Method-Override": "DELETE"
+                }, function(fallbackResult) {
+                    if (fallbackResult.status === 200 || fallbackResult.status === 204 || fallbackResult.status === 404 || fallbackResult.status === 410) {
+                        _loescheServerAufgaben(index + 1, tombstones, callback);
+                        return;
+                    }
+
+                    const restFallback = [uid];
+                    for (let i = index + 1; i < tombstones.length; i++) {
+                        restFallback.push(tombstones[i]);
+                    }
+                    callback(_eindeutigeUids(restFallback));
+                });
+                return;
+            }
+
             // Nicht blockierend: UID als Tombstone behalten und später erneut versuchen.
             const rest = [uid];
             for (let i = index + 1; i < tombstones.length; i++) {
@@ -497,7 +516,16 @@ Item {
         // qmllint disable unqualified
         const request = new XMLHttpRequest();
         // qmllint enable unqualified
-        request.open(method, url);
+        try {
+            request.open(method, url);
+        } catch (error) {
+            callback({
+                status: 0,
+                text: String(error || ""),
+                etag: ""
+            });
+            return;
+        }
         request.setRequestHeader("Authorization", _authHeader());
         request.setRequestHeader("Accept", "text/calendar, application/xml, text/xml, */*");
 
