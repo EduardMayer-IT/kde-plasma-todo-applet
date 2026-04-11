@@ -570,6 +570,22 @@ Item {
         request.send(body === undefined ? null : body);
     }
 
+    function _aufgabenRessourcenUrl(aufgabe) {
+        const href = String((aufgabe && aufgabe.caldavHref) || "").trim();
+        if (href.length > 0 && href.endsWith(".ics")) {
+            if (/^https?:\/\//i.test(href)) {
+                return href;
+            }
+            // Server liefert i.d.R. absolute HREFs wie /remote.php/dav/...
+            if (href.startsWith("/")) {
+                return _baseUrl() + href;
+            }
+            return _caldavUrl() + href;
+        }
+
+        return _caldavUrl() + encodeURIComponent(aufgabe.uid) + ".ics";
+    }
+
     function _syncLokaleAufgabe(index, lokal, konfliktUids) {
         if (index >= lokal.length) {
             _ladeServerAufgaben(konfliktUids);
@@ -577,7 +593,7 @@ Item {
         }
 
         const aufgabe = lokal[index];
-        const url = _caldavUrl() + encodeURIComponent(aufgabe.uid) + ".ics";
+        const url = _aufgabenRessourcenUrl(aufgabe);
         const headers = {
             "Content-Type": "text/calendar; charset=utf-8"
         };
