@@ -132,8 +132,13 @@ Item {
     function _startSync(lokal) {
         root.synchronisiertGerade = true;
         root.hatFehler = false;
-        root.statusNachricht = "Synchronisiere mit Nextcloud...";
-        _syncLokaleAufgabe(0, lokal, [], {});
+        root.statusNachricht = "Lade Server-Stand...";
+
+        _ladeServerStand(function(serverAufgaben) {
+            const vereinigung = _vereinigeBeidseitig(lokal, serverAufgaben);
+            root.statusNachricht = "Synchronisiere in beide Richtungen...";
+            _syncLokaleAufgabe(0, vereinigung.aufgaben, vereinigung.konfliktUids);
+        });
     }
 
     function _pruefeKonfiguration() {
@@ -472,9 +477,9 @@ Item {
         request.send(body === undefined ? null : body);
     }
 
-    function _syncLokaleAufgabe(index, lokal, konfliktUids, serverStand) {
+    function _syncLokaleAufgabe(index, lokal, konfliktUids) {
         if (index >= lokal.length) {
-            _ladeServerAufgaben(lokal, konfliktUids, serverStand);
+            _ladeServerAufgaben(konfliktUids);
             return;
         }
 
@@ -492,13 +497,13 @@ Item {
 
         _request("PUT", url, _aufgabeZuVtodo(aufgabe), headers, function(result) {
             if (result.status === 200 || result.status === 201 || result.status === 204) {
-                _syncLokaleAufgabe(index + 1, lokal, konfliktUids, serverStand);
+                _syncLokaleAufgabe(index + 1, lokal, konfliktUids);
                 return;
             }
 
             if (result.status === 412) {
                 konfliktUids.push(aufgabe.uid);
-                _syncLokaleAufgabe(index + 1, lokal, konfliktUids, serverStand);
+                _syncLokaleAufgabe(index + 1, lokal, konfliktUids);
                 return;
             }
 
@@ -506,7 +511,7 @@ Item {
         });
     }
 
-    function _ladeServerAufgaben(lokal, konfliktUids, serverStand) {
+    function _ladeServerStand(callback) {
         const reportXml =
             '<c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">'
             + '<d:prop><d:getetag/><c:calendar-data/></d:prop>'
@@ -522,18 +527,78 @@ Item {
                 return;
             }
 
-            const serverAufgaben = _parsiereMultistatus(result.text);
-            const merged = _mergeServerStand(lokal, serverAufgaben);
+            callback(_parsiereMultistatus(result.text));
+        });
+    }
+
+    function _ladeServerAufgaben(konfliktUids) {
+        _ladeServerStand(function(serverAufgaben) {
             const konfliktAnzahl = konfliktUids.length;
 
             root.synchronisiertGerade = false;
             root.hatFehler = false;
             root.statusNachricht = konfliktAnzahl > 0
                 ? konfliktAnzahl + " Konflikte erkannt, Server-Stand uebernommen"
-                : merged.length + " Aufgaben synchronisiert";
-            root.aufgabenEmpfangen(merged);
+                : serverAufgaben.length + " Aufgaben in beide Richtungen synchronisiert";
+            root.aufgabenEmpfangen(serverAufgaben);
             root.synchronisationFertig(true, root.statusNachricht);
         });
+    }
+
+    function _vereinigeBeidseitig(lokal, serverAufgaben) {
+        const serverNachUid = {};
+        const merged = [];
+        const konfliktUids = [];
+
+        for (let i = 0; i < serverAufgaben.length; i++) {
+            const s = serverAufgaben[i];
+            if (s && s.uid) {
+                serverNachUid[s.uid] = s;
+            }
+        }
+
+        for (let i = 0; i < lokal.length; i++) {
+            const l = lokal[i];
+            if (!l || !l.uid) {
+                continue;
+            }
+
+            const s = serverNachUid[l.uid];
+            if (!s) {
+                merged.push(l);
+                continue;
+            }
+
+            // ETag hat sich seit letztem Stand verändert -> Serverversion bevorzugen.
+            // So vermeiden wir, dass fremde/neuere Nextcloud-Änderungen überschrieben werden.
+            if (l.etag && s.etag && l.etag !== s.etag) {
+                merged.push(s);
+                konfliktUids.push(l.uid);
+            } else {
+                merged.push({
+                    beschreibung: l.beschreibung,
+                    prioritaet: l.prioritaet,
+                    faelligkeit: l.faelligkeit,
+                    erledigt: l.erledigt,
+                    untereintraege: _kloneUntereintraege(l.untereintraege),
+                    uid: l.uid,
+                    etag: l.etag || s.etag || "",
+                    caldavHref: l.caldavHref || s.caldavHref || ""
+                });
+            }
+
+            delete serverNachUid[l.uid];
+        }
+
+        const restUids = Object.keys(serverNachUid);
+        for (let i = 0; i < restUids.length; i++) {
+            merged.push(serverNachUid[restUids[i]]);
+        }
+
+        return {
+            aufgaben: merged,
+            konfliktUids: konfliktUids
+        };
     }
 
     function _mergeServerStand(lokal, serverAufgaben) {
