@@ -16,5 +16,8 @@
         <entry name="nextcloudKalenderPfad" type="String">
             <default>tasks</default>
         </entry>
+        <entry name="nextcloudDeletedUidsJson" type="String">
+            <default>[]</default>
+        </entry>
     </group>
 </kcfg>

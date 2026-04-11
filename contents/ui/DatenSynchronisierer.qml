@@ -20,6 +20,7 @@ Item {
     property bool synchronisiertGerade: false
     property var _syncAufgaben: []
     property bool _syncNachPasswortLaden: false
+    property var geloeschteUids: []
 
     property string statusNachricht: ""
     property bool hatFehler: false
@@ -36,6 +37,7 @@ Item {
 
     signal passwortLadeFertig(bool erfolg)
     signal aufgabenEmpfangen(var aufgaben)
+    signal geloeschteUidsAktualisiert(var uids)
     signal synchronisationFertig(bool erfolg, string nachricht)
 
     Component.onCompleted: {
@@ -137,7 +139,50 @@ Item {
         _ladeServerStand(function(serverAufgaben) {
             const vereinigung = _vereinigeBeidseitig(lokal, serverAufgaben);
             root.statusNachricht = "Synchronisiere in beide Richtungen...";
-            _syncLokaleAufgabe(0, vereinigung.aufgaben, vereinigung.konfliktUids);
+            _loescheServerAufgaben(0, _eindeutigeUids(geloeschteUids), function(verbleibendeTombstones) {
+                root.geloeschteUidsAktualisiert(verbleibendeTombstones);
+                _syncLokaleAufgabe(0, vereinigung.aufgaben, vereinigung.konfliktUids);
+            });
+        });
+    }
+
+    function _eindeutigeUids(liste) {
+        const seen = {};
+        const out = [];
+        const arr = Array.isArray(liste) ? liste : [];
+
+        for (let i = 0; i < arr.length; i++) {
+            const uid = String(arr[i] || "").trim();
+            if (!uid || seen[uid]) {
+                continue;
+            }
+            seen[uid] = true;
+            out.push(uid);
+        }
+
+        return out;
+    }
+
+    function _loescheServerAufgaben(index, tombstones, callback) {
+        if (index >= tombstones.length) {
+            callback([]);
+            return;
+        }
+
+        const uid = tombstones[index];
+        const url = _caldavUrl() + encodeURIComponent(uid) + ".ics";
+        _request("DELETE", url, null, {}, function(result) {
+            if (result.status === 200 || result.status === 204 || result.status === 404 || result.status === 410) {
+                _loescheServerAufgaben(index + 1, tombstones, callback);
+                return;
+            }
+
+            // Nicht blockierend: UID als Tombstone behalten und später erneut versuchen.
+            const rest = [uid];
+            for (let i = index + 1; i < tombstones.length; i++) {
+                rest.push(tombstones[i]);
+            }
+            callback(_eindeutigeUids(rest));
         });
     }
 
@@ -549,10 +594,18 @@ Item {
         const serverNachUid = {};
         const merged = [];
         const konfliktUids = [];
+        const geloeschteSet = {};
+
+        for (let i = 0; i < (Array.isArray(geloeschteUids) ? geloeschteUids.length : 0); i++) {
+            const uid = String(geloeschteUids[i] || "").trim();
+            if (uid) {
+                geloeschteSet[uid] = true;
+            }
+        }
 
         for (let i = 0; i < serverAufgaben.length; i++) {
             const s = serverAufgaben[i];
-            if (s && s.uid) {
+            if (s && s.uid && !geloeschteSet[s.uid]) {
                 serverNachUid[s.uid] = s;
             }
         }
@@ -560,6 +613,9 @@ Item {
         for (let i = 0; i < lokal.length; i++) {
             const l = lokal[i];
             if (!l || !l.uid) {
+                continue;
+            }
+            if (geloeschteSet[l.uid]) {
                 continue;
             }
 

@@ -14,6 +14,7 @@ PlasmoidItem {
     id: root
     // qmllint disable unqualified
     readonly property string gespeicherteAufgaben: Plasmoid.configuration.tasksJson || "[]"
+    readonly property string gespeicherteGeloeschteUids: Plasmoid.configuration.nextcloudDeletedUidsJson || "[]"
     property int neueAufgabePrioritaet: 0
     property bool dragAktiv: false
     property int dragQuellIndex: -1
@@ -24,6 +25,7 @@ PlasmoidItem {
     property string letzterExportPfad: ""
     property bool autoSyncAusstehend: false
     property bool autoSyncUnterdrueckt: false
+    property var geloeschteUids: []
     // qmllint enable unqualified
 
     implicitWidth: Kirigami.Units.gridUnit * 15.5
@@ -48,6 +50,71 @@ PlasmoidItem {
         }
 
         autoSyncTimer.restart();
+    }
+
+    function parseUidListe(jsonText) {
+        try {
+            const arr = JSON.parse(String(jsonText || "[]"));
+            if (!Array.isArray(arr)) {
+                return [];
+            }
+            const seen = {};
+            const out = [];
+            for (let i = 0; i < arr.length; i++) {
+                const uid = String(arr[i] || "").trim();
+                if (!uid || seen[uid]) {
+                    continue;
+                }
+                seen[uid] = true;
+                out.push(uid);
+            }
+            return out;
+        } catch (error) {
+            return [];
+        }
+    }
+
+    function speichereGeloeschteUids() {
+        // qmllint disable unqualified
+        Plasmoid.configuration.nextcloudDeletedUidsJson = JSON.stringify(root.geloeschteUids || []);
+        // qmllint enable unqualified
+    }
+
+    function merkeGeloeschteUid(uid) {
+        const wert = String(uid || "").trim();
+        if (!wert) {
+            return;
+        }
+        if ((root.geloeschteUids || []).indexOf(wert) !== -1) {
+            return;
+        }
+        root.geloeschteUids = (root.geloeschteUids || []).concat([wert]);
+        speichereGeloeschteUids();
+    }
+
+    function bereinigeTombstonesMitServer(aufgaben) {
+        const serverSet = {};
+        const arr = Array.isArray(aufgaben) ? aufgaben : [];
+        for (let i = 0; i < arr.length; i++) {
+            const uid = String((arr[i] && arr[i].uid) || "").trim();
+            if (uid) {
+                serverSet[uid] = true;
+            }
+        }
+
+        const neu = [];
+        const tombstones = Array.isArray(root.geloeschteUids) ? root.geloeschteUids : [];
+        for (let i = 0; i < tombstones.length; i++) {
+            const uid = String(tombstones[i] || "").trim();
+            if (uid && serverSet[uid]) {
+                neu.push(uid);
+            }
+        }
+
+        if (JSON.stringify(neu) !== JSON.stringify(tombstones)) {
+            root.geloeschteUids = neu;
+            speichereGeloeschteUids();
+        }
     }
 
     function prioritaetFarbe(prioritaet) {
@@ -315,6 +382,8 @@ PlasmoidItem {
                     }
 
                     onLoeschenAngefragt: {
+                        const eintrag = aufgabenModell.get(index);
+                        root.merkeGeloeschteUid(eintrag ? eintrag.uid : "");
                         aufgabenModell.aufgabeLoeschen(index);
                     }
 
@@ -433,11 +502,17 @@ PlasmoidItem {
         nextcloudUrl:   Plasmoid.configuration.nextcloudUrl          || ""
         benutzername:   Plasmoid.configuration.nextcloudUsername      || ""
         kalenderPfad:   Plasmoid.configuration.nextcloudKalenderPfad  || "tasks"
+        geloeschteUids: root.geloeschteUids
 
         onAufgabenEmpfangen: function(aufgaben) {
             root.autoSyncUnterdrueckt = true;
             aufgabenModell.ausSyncDatenErsetzen(aufgaben);
             root.autoSyncUnterdrueckt = false;
+            root.bereinigeTombstonesMitServer(aufgaben);
+        }
+        onGeloeschteUidsAktualisiert: function(uids) {
+            root.geloeschteUids = Array.isArray(uids) ? uids : [];
+            root.speichereGeloeschteUids();
         }
         onSynchronisationFertig: function(erfolg, nachricht) {
             syncHinweis.title = erfolg ? i18n("Nextcloud Sync") : i18n("Sync fehlgeschlagen");
@@ -513,6 +588,7 @@ PlasmoidItem {
     }
 
     Component.onCompleted: {
+        root.geloeschteUids = parseUidListe(root.gespeicherteGeloeschteUids);
         // Passwort beim Start aus dem Schlüsselbund laden (KeePassXC / KWallet)
         datenSync.ladePasswort();
     }
