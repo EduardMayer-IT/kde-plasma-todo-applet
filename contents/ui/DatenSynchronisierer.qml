@@ -21,6 +21,7 @@ Item {
     property var _syncAufgaben: []
     property bool _syncNachPasswortLaden: false
     property var geloeschteUids: []
+    property var _reportFallbackCallback: null
 
     property string statusNachricht: ""
     property bool hatFehler: false
@@ -614,6 +615,12 @@ Item {
             "Content-Type": "application/xml; charset=utf-8",
             "Depth": "1"
         }, function(result) {
+            // Fallback fuer Umgebungen, in denen QML/XHR REPORT nicht unterstützt.
+            if (result.status === 0) {
+                _ladeServerStandMitCurl(reportXml, callback);
+                return;
+            }
+
             if (result.status < 200 || result.status > 299) {
                 _fehlschlag("Sync fehlgeschlagen (REPORT " + result.status + ")");
                 return;
@@ -621,6 +628,25 @@ Item {
 
             callback(_parsiereMultistatus(result.text));
         });
+    }
+
+    function _ladeServerStandMitCurl(reportXml, callback) {
+        _reportFallbackCallback = callback;
+
+        const script =
+            "NC_USER=" + _sq(benutzername.trim()) + "; "
+            + "PW=$(secret-tool lookup service nextcloud-todo-kde username \"$NC_USER\" 2>/dev/null); "
+            + "if [ -z \"$PW\" ]; then echo __STATUS__:000; exit 0; fi; "
+            + "AUTH=$(printf '%s' \"$NC_USER:$PW\" | base64 -w0); "
+            + "curl -sS --request REPORT " + _sq(_caldavUrl()) + " "
+            + "-H \"Authorization: Basic $AUTH\" "
+            + "-H \"Accept: text/calendar, application/xml, text/xml, */*\" "
+            + "-H \"Content-Type: application/xml; charset=utf-8\" "
+            + "-H \"Depth: 1\" "
+            + "--data " + _sq(reportXml) + " "
+            + "-w '\n__STATUS__:%{http_code}'";
+
+        reportFallbackEngine.connectSource("sh -c " + _sq(script));
     }
 
     function _ladeServerAufgaben(konfliktUids) {
@@ -782,6 +808,34 @@ Item {
                 root.hatFehler = true;
                 root.statusNachricht = "Passwort konnte nicht gespeichert werden";
             }
+        }
+    }
+
+    P5Support.DataSource {
+        id: reportFallbackEngine
+        engine: "executable"
+
+        onNewData: function(src, data) {
+            disconnectSource(src);
+            removeSource(src);
+
+            const callback = root._reportFallbackCallback;
+            root._reportFallbackCallback = null;
+            if (!callback) {
+                return;
+            }
+
+            const stdout = String(data["stdout"] || "");
+            const match = stdout.match(/__STATUS__:(\d{3})\s*$/);
+            const status = match ? parseInt(match[1]) : 0;
+            const body = match ? stdout.replace(/\n?__STATUS__:\d{3}\s*$/, "") : stdout;
+
+            if (status >= 200 && status <= 299) {
+                callback(_parsiereMultistatus(body));
+                return;
+            }
+
+            _fehlschlag("Sync fehlgeschlagen (REPORT " + status + ")");
         }
     }
 }
