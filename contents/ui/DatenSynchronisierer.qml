@@ -516,8 +516,27 @@ Item {
         // qmllint disable unqualified
         const request = new XMLHttpRequest();
         // qmllint enable unqualified
+
+        const gewuenschteMethode = String(method || "GET").toUpperCase();
+        let effektiveMethode = gewuenschteMethode;
+        const headers = {};
+
+        if (extraHeaders) {
+            const headerNamen = Object.keys(extraHeaders);
+            for (let i = 0; i < headerNamen.length; i++) {
+                headers[headerNamen[i]] = extraHeaders[headerNamen[i]];
+            }
+        }
+
+        // Einige QML-Backends akzeptieren REPORT/DELETE nicht direkt.
+        // Dann nutzen wir POST mit Method-Override.
+        if (gewuenschteMethode !== "GET" && gewuenschteMethode !== "POST" && gewuenschteMethode !== "PUT" && gewuenschteMethode !== "HEAD") {
+            effektiveMethode = "POST";
+            headers["X-HTTP-Method-Override"] = gewuenschteMethode;
+        }
+
         try {
-            request.open(method, url);
+            request.open(effektiveMethode, url);
         } catch (error) {
             callback({
                 status: 0,
@@ -529,10 +548,10 @@ Item {
         request.setRequestHeader("Authorization", _authHeader());
         request.setRequestHeader("Accept", "text/calendar, application/xml, text/xml, */*");
 
-        if (extraHeaders) {
-            const headerNamen = Object.keys(extraHeaders);
+        {
+            const headerNamen = Object.keys(headers);
             for (let i = 0; i < headerNamen.length; i++) {
-                request.setRequestHeader(headerNamen[i], extraHeaders[headerNamen[i]]);
+                request.setRequestHeader(headerNamen[i], headers[headerNamen[i]]);
             }
         }
 
