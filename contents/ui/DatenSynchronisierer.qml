@@ -444,7 +444,9 @@ Item {
     }
 
     function _request(method, url, body, extraHeaders, callback) {
+        // qmllint disable unqualified
         const request = new XMLHttpRequest();
+        // qmllint enable unqualified
         request.open(method, url);
         request.setRequestHeader("Authorization", _authHeader());
         request.setRequestHeader("Accept", "text/calendar, application/xml, text/xml, */*");
@@ -585,7 +587,7 @@ Item {
                 // Sync wurde angefordert während Passwort noch geladen wurde → jetzt starten
                 if (root._syncNachPasswortLaden) {
                     root._syncNachPasswortLaden = false;
-                    _startSync(root._syncAufgaben);
+                    root._startSync(root._syncAufgaben);
                 }
             } else {
                 root._passwort = "";
