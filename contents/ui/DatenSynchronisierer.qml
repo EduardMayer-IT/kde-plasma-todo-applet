@@ -528,9 +528,9 @@ Item {
             }
         }
 
-        // Einige QML-Backends akzeptieren REPORT/DELETE nicht direkt.
-        // Dann nutzen wir POST mit Method-Override.
-        if (gewuenschteMethode !== "GET" && gewuenschteMethode !== "POST" && gewuenschteMethode !== "PUT" && gewuenschteMethode !== "HEAD") {
+        // Für DELETE nutzen wir bei Bedarf POST mit Method-Override als Fallback.
+        // REPORT soll direkt laufen (Nextcloud CalDAV erwartet echtes REPORT).
+        if (gewuenschteMethode === "DELETE") {
             effektiveMethode = "POST";
             headers["X-HTTP-Method-Override"] = gewuenschteMethode;
         }
