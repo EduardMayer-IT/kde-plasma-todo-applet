@@ -23,6 +23,7 @@ PlasmoidItem {
     property int filterModus: 0   // 0=alle, 1=offen, 2=erledigt
     property int sortierModus: 0  // 0=standard, 1=prioritaet, 2=datum
     property string letzterExportPfad: ""
+    property string letzterSyncZeitText: ""
     property bool autoSyncAusstehend: false
     property bool autoSyncUnterdrueckt: false
     property var geloeschteUids: []
@@ -115,6 +116,34 @@ PlasmoidItem {
             root.geloeschteUids = neu;
             speichereGeloeschteUids();
         }
+    }
+
+    function formatiereZeitstempel(datum) {
+        const d = datum || new Date();
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mm = String(d.getMinutes()).padStart(2, "0");
+        const ss = String(d.getSeconds()).padStart(2, "0");
+        return hh + ":" + mm + ":" + ss;
+    }
+
+    function syncStatusText() {
+        const loeschungen = Array.isArray(root.geloeschteUids) ? root.geloeschteUids.length : 0;
+        const teile = [];
+
+        if (datenSync.synchronisiertGerade) {
+            teile.push(i18n("Sync laeuft"));
+        } else if (datenSync.hatFehler) {
+            teile.push(i18n("Sync-Fehler"));
+        } else {
+            teile.push(i18n("Sync bereit"));
+        }
+
+        teile.push(i18n("Ausstehende Loeschungen: %1", loeschungen));
+        teile.push(letzterSyncZeitText.length > 0
+            ? i18n("Letzter Sync: %1", letzterSyncZeitText)
+            : i18n("Letzter Sync: noch keiner"));
+
+        return teile.join(" | ");
     }
 
     function prioritaetFarbe(prioritaet) {
@@ -309,6 +338,15 @@ PlasmoidItem {
                     // qmllint enable unqualified
                 }
             }
+        }
+
+        QtControls.Label {
+            Layout.fillWidth: true
+            text: root.syncStatusText()
+            font.pixelSize: Kirigami.Units.gridUnit * 0.48
+            color: datenSync.hatFehler ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.disabledTextColor
+            wrapMode: Text.Wrap
+            elide: Text.ElideRight
         }
 
         Rectangle {
@@ -518,6 +556,9 @@ PlasmoidItem {
             syncHinweis.title = erfolg ? i18n("Nextcloud Sync") : i18n("Sync fehlgeschlagen");
             syncHinweis.text  = nachricht;
             syncHinweis.sendEvent();
+            if (erfolg) {
+                root.letzterSyncZeitText = root.formatiereZeitstempel(new Date());
+            }
             if (root.autoSyncAusstehend) {
                 root.autoSyncAusstehend = false;
                 root.planeAutoSync();
