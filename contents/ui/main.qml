@@ -443,7 +443,7 @@ PlasmoidItem {
                 anchors.topMargin: Kirigami.Units.smallSpacing * 0.14
                 anchors.bottomMargin: Kirigami.Units.smallSpacing * 0.14
                 anchors.rightMargin: Kirigami.Units.smallSpacing * 0.14
-                width: Kirigami.Units.gridUnit * 0.86
+                width: Kirigami.Units.gridUnit * 0.64
                 policy: QtControls.ScrollBar.AlwaysOn
                 active: true
                 visible: true
@@ -461,18 +461,20 @@ PlasmoidItem {
 
                 background: Rectangle {
                     radius: width / 2
-                    color: Qt.rgba(0, 0, 0, 0.32)
+                    color: Qt.rgba(1, 1, 1, 0.08)
                     border.width: 1
-                    border.color: Qt.rgba(1, 1, 1, 0.38)
+                    border.color: Qt.rgba(1, 1, 1, 0.14)
                 }
 
                 contentItem: Rectangle {
                     radius: width / 2
                     color: sichtbareScrollLeiste.pressed
-                        ? Qt.rgba(1, 1, 1, 1.0)
-                        : Qt.rgba(0.95, 0.95, 0.95, 0.95)
+                        ? Qt.rgba(1, 1, 1, 0.78)
+                        : (sichtbareScrollLeiste.active
+                           ? Qt.rgba(1, 1, 1, 0.62)
+                           : Qt.rgba(1, 1, 1, 0.46))
                     border.width: 1
-                    border.color: Qt.rgba(0, 0, 0, 0.52)
+                    border.color: Qt.rgba(0, 0, 0, 0.24)
                 }
             }
         }
