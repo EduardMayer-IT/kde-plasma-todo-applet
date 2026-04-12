@@ -434,8 +434,27 @@ PlasmoidItem {
                 }
                 
                 QtControls.ScrollBar.vertical: QtControls.ScrollBar {
-                    policy: QtControls.ScrollBar.AsNeeded
-                    width: Kirigami.Units.gridUnit * 0.75
+                    id: vertikaleLeiste
+                    policy: QtControls.ScrollBar.AlwaysOn
+                    width: Kirigami.Units.gridUnit * 0.78
+                    minimumSize: 0.08
+                    interactive: true
+
+                    background: Rectangle {
+                        radius: width / 2
+                        color: Qt.rgba(1, 1, 1, 0.14)
+                        border.width: 1
+                        border.color: Qt.rgba(1, 1, 1, 0.20)
+                    }
+
+                    contentItem: Rectangle {
+                        radius: width / 2
+                        color: vertikaleLeiste.pressed
+                            ? Qt.rgba(0.95, 0.95, 0.95, 0.95)
+                            : Qt.rgba(0.92, 0.92, 0.92, 0.82)
+                        border.width: 1
+                        border.color: Qt.rgba(0, 0, 0, 0.22)
+                    }
                 }
             }
         }
