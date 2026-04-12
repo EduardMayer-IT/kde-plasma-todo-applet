@@ -981,13 +981,13 @@ QtControls.ItemDelegate {
         QtControls.Button {
             id: loeschenButton
             text: "✕"
-            font.pixelSize: Kirigami.Units.gridUnit * 0.82
+            font.pixelSize: Kirigami.Units.gridUnit * 0.9
             font.bold: false
-            Layout.preferredHeight: Kirigami.Units.gridUnit * 1.3
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 1.3
-            Layout.maximumWidth: Kirigami.Units.gridUnit * 1.3
+            Layout.preferredHeight: Kirigami.Units.gridUnit * 1.45
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 1.45
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 1.45
             Layout.alignment: Qt.AlignVCenter
-            Layout.rightMargin: Kirigami.Units.smallSpacing * 1.1
+            Layout.rightMargin: Kirigami.Units.smallSpacing * 1.45
             opacity: loeschenButton.hovered ? 1.0 : 0.72
             
             background: Rectangle {

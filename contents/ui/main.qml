@@ -29,7 +29,7 @@ PlasmoidItem {
     property var geloeschteUids: []
     // qmllint enable unqualified
 
-    implicitWidth: Kirigami.Units.gridUnit * 16.4
+    implicitWidth: Kirigami.Units.gridUnit * 18.2
     implicitHeight: Kirigami.Units.gridUnit * 12.2
 
     function aufgabeAusEingabeHinzufuegen() {
@@ -364,7 +364,7 @@ PlasmoidItem {
                 anchors.leftMargin: Kirigami.Units.smallSpacing * 0.14
                 anchors.topMargin: Kirigami.Units.smallSpacing * 0.14
                 anchors.bottomMargin: Kirigami.Units.smallSpacing * 0.14
-                anchors.rightMargin: Kirigami.Units.smallSpacing * 1.1
+                anchors.rightMargin: Kirigami.Units.smallSpacing * 1.8
                 clip: true
                 spacing: Kirigami.Units.smallSpacing * 0.05
                 model: aufgabenModell
@@ -435,7 +435,7 @@ PlasmoidItem {
                 
                 QtControls.ScrollBar.vertical: QtControls.ScrollBar {
                     policy: QtControls.ScrollBar.AsNeeded
-                    width: Kirigami.Units.gridUnit * 0.5
+                    width: Kirigami.Units.gridUnit * 0.75
                 }
             }
         }
