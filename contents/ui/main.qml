@@ -364,7 +364,7 @@ PlasmoidItem {
                 anchors.leftMargin: Kirigami.Units.smallSpacing * 0.14
                 anchors.topMargin: Kirigami.Units.smallSpacing * 0.14
                 anchors.bottomMargin: Kirigami.Units.smallSpacing * 0.14
-                anchors.rightMargin: Kirigami.Units.smallSpacing * 1.8
+                anchors.rightMargin: sichtbareScrollLeiste.width + Kirigami.Units.smallSpacing * 0.35
                 clip: true
                 spacing: Kirigami.Units.smallSpacing * 0.05
                 model: aufgabenModell
@@ -432,31 +432,47 @@ PlasmoidItem {
                         aufgabenModell.aktualisiereFaelligkeit(index, neueFaelligkeit);
                     }
                 }
-                
-                QtControls.ScrollBar.vertical: QtControls.ScrollBar {
-                    id: vertikaleLeiste
-                    policy: QtControls.ScrollBar.AlwaysOn
-                    width: Kirigami.Units.gridUnit * 0.78
-                    minimumSize: 0.08
-                    interactive: true
+            }
 
-                    background: Rectangle {
-                        radius: width / 2
-                        color: Qt.rgba(0, 0, 0, 0.28)
-                        border.width: 1
-                        border.color: Qt.rgba(1, 1, 1, 0.35)
-                    }
+            QtControls.ScrollBar {
+                id: sichtbareScrollLeiste
+                orientation: Qt.Vertical
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                anchors.right: parent.right
+                anchors.topMargin: Kirigami.Units.smallSpacing * 0.14
+                anchors.bottomMargin: Kirigami.Units.smallSpacing * 0.14
+                anchors.rightMargin: Kirigami.Units.smallSpacing * 0.14
+                width: Kirigami.Units.gridUnit * 0.86
+                policy: QtControls.ScrollBar.AlwaysOn
+                active: true
+                visible: true
+                interactive: true
+                minimumSize: 0.08
+                size: Math.max(0.08, Math.min(1.0, aufgabenListe.visibleArea.heightRatio))
+                position: Math.max(0, Math.min(1 - size, aufgabenListe.visibleArea.yPosition))
 
-                    contentItem: Rectangle {
-                        radius: width / 2
-                        color: vertikaleLeiste.pressed
-                            ? Qt.rgba(1, 1, 1, 1.0)
-                            : (vertikaleLeiste.active
-                               ? Qt.rgba(0.96, 0.96, 0.96, 0.95)
-                               : Qt.rgba(0.9, 0.9, 0.9, 0.9))
-                        border.width: 1
-                        border.color: Qt.rgba(0, 0, 0, 0.48)
+                onPositionChanged: {
+                    if (pressed) {
+                        const maxY = Math.max(0, aufgabenListe.contentHeight - aufgabenListe.height);
+                        aufgabenListe.contentY = maxY * position;
                     }
+                }
+
+                background: Rectangle {
+                    radius: width / 2
+                    color: Qt.rgba(0, 0, 0, 0.32)
+                    border.width: 1
+                    border.color: Qt.rgba(1, 1, 1, 0.38)
+                }
+
+                contentItem: Rectangle {
+                    radius: width / 2
+                    color: sichtbareScrollLeiste.pressed
+                        ? Qt.rgba(1, 1, 1, 1.0)
+                        : Qt.rgba(0.95, 0.95, 0.95, 0.95)
+                    border.width: 1
+                    border.color: Qt.rgba(0, 0, 0, 0.52)
                 }
             }
         }
