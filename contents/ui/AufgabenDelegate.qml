@@ -983,11 +983,11 @@ QtControls.ItemDelegate {
             text: "✕"
             font.pixelSize: Kirigami.Units.gridUnit * 0.82
             font.bold: false
-            Layout.preferredHeight: Kirigami.Units.gridUnit * 1.18
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 1.18
-            Layout.maximumWidth: Kirigami.Units.gridUnit * 1.18
+            Layout.preferredHeight: Kirigami.Units.gridUnit * 1.3
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 1.3
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 1.3
             Layout.alignment: Qt.AlignVCenter
-            Layout.rightMargin: Kirigami.Units.smallSpacing * 0.85
+            Layout.rightMargin: Kirigami.Units.smallSpacing * 1.1
             opacity: loeschenButton.hovered ? 1.0 : 0.72
             
             background: Rectangle {
