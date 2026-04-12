@@ -469,12 +469,12 @@ PlasmoidItem {
                 contentItem: Rectangle {
                     radius: width / 2
                     color: sichtbareScrollLeiste.pressed
-                        ? Qt.rgba(1, 1, 1, 0.78)
+                        ? Qt.rgba(0.86, 0.86, 0.86, 0.92)
                         : (sichtbareScrollLeiste.active
-                           ? Qt.rgba(1, 1, 1, 0.62)
-                           : Qt.rgba(1, 1, 1, 0.46))
+                           ? Qt.rgba(0.78, 0.78, 0.78, 0.88)
+                           : Qt.rgba(0.68, 0.68, 0.68, 0.82))
                     border.width: 1
-                    border.color: Qt.rgba(0, 0, 0, 0.24)
+                    border.color: Qt.rgba(0, 0, 0, 0.34)
                 }
             }
         }
