@@ -23,6 +23,7 @@ Item {
     property var geloeschteUids: []
     property var _reportFallbackCallback: null
     property var _propfindFallbackState: null
+    property var _lokaleReihenfolgeBasis: []
     property string _aktiveCaldavUrl: ""
 
     property string statusNachricht: ""
@@ -145,6 +146,7 @@ Item {
 
         _ladeServerStand(function(serverAufgaben) {
             const vereinigung = _vereinigeBeidseitig(lokal, serverAufgaben);
+            root._lokaleReihenfolgeBasis = vereinigung.aufgaben;
             root.statusNachricht = "Synchronisiere in beide Richtungen...";
             _loescheServerAufgaben(0, _eindeutigeUids(geloeschteUids), function(verbleibendeTombstones) {
                 root.geloeschteUidsAktualisiert(verbleibendeTombstones);
@@ -970,14 +972,19 @@ Item {
     function _ladeServerAufgaben(konfliktUids) {
         _ladeServerStand(function(serverAufgaben) {
             const konfliktAnzahl = konfliktUids.length;
+            const basis = Array.isArray(root._lokaleReihenfolgeBasis) ? root._lokaleReihenfolgeBasis : [];
+            const finalAufgaben = basis.length > 0
+                ? _mergeServerStand(basis, serverAufgaben)
+                : serverAufgaben;
 
             root.synchronisiertGerade = false;
             root.hatFehler = false;
             root.statusNachricht = konfliktAnzahl > 0
                 ? konfliktAnzahl + " Konflikte erkannt, Server-Stand uebernommen"
-                : serverAufgaben.length + " Aufgaben in beide Richtungen synchronisiert";
-            root.aufgabenEmpfangen(serverAufgaben);
+                : finalAufgaben.length + " Aufgaben in beide Richtungen synchronisiert";
+            root.aufgabenEmpfangen(finalAufgaben);
             root.synchronisationFertig(true, root.statusNachricht);
+            root._lokaleReihenfolgeBasis = [];
         });
     }
 
@@ -1087,6 +1094,7 @@ Item {
         root.synchronisiertGerade = false;
         root.hatFehler = true;
         root.statusNachricht = nachricht;
+        root._lokaleReihenfolgeBasis = [];
         root.synchronisationFertig(false, nachricht);
     }
 
