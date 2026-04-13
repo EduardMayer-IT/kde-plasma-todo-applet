@@ -461,20 +461,20 @@ PlasmoidItem {
 
                 background: Rectangle {
                     radius: width / 2
-                    color: Qt.rgba(1, 1, 1, 0.08)
+                    color: Qt.rgba(0, 0, 0, 0.22)
                     border.width: 1
-                    border.color: Qt.rgba(1, 1, 1, 0.14)
+                    border.color: Qt.rgba(1, 1, 1, 0.10)
                 }
 
                 contentItem: Rectangle {
                     radius: width / 2
                     color: sichtbareScrollLeiste.pressed
-                        ? Qt.rgba(0.86, 0.86, 0.86, 0.92)
+                        ? Qt.rgba(0.24, 0.24, 0.24, 0.96)
                         : (sichtbareScrollLeiste.active
-                           ? Qt.rgba(0.78, 0.78, 0.78, 0.88)
-                           : Qt.rgba(0.68, 0.68, 0.68, 0.82))
+                           ? Qt.rgba(0.30, 0.30, 0.30, 0.92)
+                           : Qt.rgba(0.36, 0.36, 0.36, 0.88))
                     border.width: 1
-                    border.color: Qt.rgba(0, 0, 0, 0.34)
+                    border.color: Qt.rgba(1, 1, 1, 0.12)
                 }
             }
         }

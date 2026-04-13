@@ -30,7 +30,9 @@ QtControls.ItemDelegate {
     property bool unterzeilenModusAktiv: false
     property real dragStartXInList: 0
     property real dragStartYInList: 0
+    property real dragAktuelleYInList: 0
     property int unterzeilenZielIndex: -1
+    property real autoScrollGeschwindigkeit: 0
 
     signal erledigtGewechselt(bool istErledigt)
     signal prioritaetGewechselt(int neuePrioritaet)
@@ -222,13 +224,23 @@ QtControls.ItemDelegate {
     }
 
     function dragAbschliessen() {
-        const quellIndex = aufgabenDelegate.index;
+        autoScrollTimer.stop();
+        aufgabenDelegate.autoScrollGeschwindigkeit = 0;
+
+        const quellIndex = aufgabenDelegate.dragStatusQuellIndex() >= 0
+            ? aufgabenDelegate.dragStatusQuellIndex()
+            : aufgabenDelegate.index;
+        const zielIndex = aufgabenDelegate.dragStatusZielIndex();
         const modeOK = aufgabenDelegate.unterzeilenModusAktiv;
         const targetOK = aufgabenDelegate.unterzeilenZielIndex >= 0;
         const notSameOK = aufgabenDelegate.unterzeilenZielIndex !== quellIndex;
 
         if (modeOK && targetOK && notSameOK) {
             aufgabenDelegate.verschiebeAlsUnterzeile(quellIndex, aufgabenDelegate.unterzeilenZielIndex);
+        } else if (!modeOK && zielIndex >= 0 && zielIndex !== quellIndex) {
+            // Freies vertikales Verschieben: während Drag nur Ziel markieren,
+            // tatsächliches Umordnen erst beim Loslassen.
+            aufgabenDelegate.verschiebeEintrag(quellIndex, zielIndex);
         }
 
         aufgabenDelegate.setzeDragStatus(false, -1, -1, false);
@@ -236,6 +248,26 @@ QtControls.ItemDelegate {
         aufgabenDelegate.letzterZielIndex = -1;
         aufgabenDelegate.unterzeilenModusAktiv = false;
         aufgabenDelegate.unterzeilenZielIndex = -1;
+    }
+
+    function _aktualisiereDragZiel(listView, yInContent) {
+        let targetIdx = listView.indexAt(listView.width * 0.5, yInContent);
+        if (targetIdx < 0) {
+            targetIdx = yInContent < 0 ? 0 : (listView.count - 1);
+        }
+        targetIdx = Math.max(0, Math.min(listView.count - 1, targetIdx));
+
+        aufgabenDelegate.unterzeilenZielIndex = targetIdx;
+        aufgabenDelegate.setzeDragStatus(
+            true,
+            aufgabenDelegate.dragStatusQuellIndex(),
+            targetIdx,
+            aufgabenDelegate.unterzeilenModusAktiv
+        );
+
+        if (!aufgabenDelegate.unterzeilenModusAktiv) {
+            aufgabenDelegate.letzterZielIndex = targetIdx;
+        }
     }
 
     background: Rectangle {
@@ -420,6 +452,8 @@ QtControls.ItemDelegate {
                     aufgabenDelegate.letzterZielIndex = -1;
                     aufgabenDelegate.unterzeilenModusAktiv = false;
                     aufgabenDelegate.unterzeilenZielIndex = -1;
+                    aufgabenDelegate.autoScrollGeschwindigkeit = 0;
+                    autoScrollTimer.stop();
 
                     const listView = aufgabenDelegate.ListView.view;
                     if (!listView) {
@@ -428,6 +462,7 @@ QtControls.ItemDelegate {
                     const posInList = dragMausflaeche.mapToItem(listView, mouse.x, mouse.y);
                     aufgabenDelegate.dragStartXInList = posInList.x;
                     aufgabenDelegate.dragStartYInList = posInList.y;
+                    aufgabenDelegate.dragAktuelleYInList = posInList.y;
                     aufgabenDelegate.setzeDragStatus(true, aufgabenDelegate.index, aufgabenDelegate.index, false);
                 }
 
@@ -449,6 +484,7 @@ QtControls.ItemDelegate {
                     const posInList = dragMausflaeche.mapToItem(listView, mouse.x, mouse.y);
                     const horizontalerVersatz = posInList.x - aufgabenDelegate.dragStartXInList;
                     const vertikalerVersatz = posInList.y - aufgabenDelegate.dragStartYInList;
+                    aufgabenDelegate.dragAktuelleYInList = posInList.y;
                     const yInContent = listView.contentY + posInList.y;
                     const horizontalAbs = Math.abs(horizontalerVersatz);
                     const vertikalAbs = Math.abs(vertikalerVersatz);
@@ -466,33 +502,60 @@ QtControls.ItemDelegate {
                         aufgabenDelegate.unterzeilenModusAktiv
                     );
 
-                    let targetIdx = listView.indexAt(listView.width * 0.5, yInContent);
-                    if (targetIdx < 0) {
-                        targetIdx = yInContent < 0 ? 0 : (listView.count - 1);
-                    }
-                    targetIdx = Math.max(0, Math.min(listView.count - 1, targetIdx));
-
-                    // Always keep target index current (needed for correct release handling)
-                    aufgabenDelegate.unterzeilenZielIndex = targetIdx;
-                    aufgabenDelegate.setzeDragStatus(
-                        true,
-                        aufgabenDelegate.dragStatusQuellIndex(),
-                        targetIdx,
-                        aufgabenDelegate.unterzeilenModusAktiv
-                    );
+                    aufgabenDelegate._aktualisiereDragZiel(listView, yInContent);
 
                     // In subentry mode: only track target, never reorder
                     if (aufgabenDelegate.unterzeilenModusAktiv) {
                         return;
                     }
 
-                    // Normal vertical reorder
-                    if (targetIdx === aufgabenDelegate.index || targetIdx === aufgabenDelegate.letzterZielIndex) {
-                        return;
+                    const randZone = Math.max(24, Kirigami.Units.gridUnit * 0.8);
+                    const maxSpeed = Math.max(18, Kirigami.Units.gridUnit * 0.7);
+                    const topDist = posInList.y;
+                    const bottomDist = listView.height - posInList.y;
+
+                    if (topDist < randZone) {
+                        const faktorTop = 1 - Math.max(0, topDist) / randZone;
+                        aufgabenDelegate.autoScrollGeschwindigkeit = -maxSpeed * faktorTop;
+                        autoScrollTimer.start();
+                    } else if (bottomDist < randZone) {
+                        const faktorBottom = 1 - Math.max(0, bottomDist) / randZone;
+                        aufgabenDelegate.autoScrollGeschwindigkeit = maxSpeed * faktorBottom;
+                        autoScrollTimer.start();
+                    } else {
+                        aufgabenDelegate.autoScrollGeschwindigkeit = 0;
+                        autoScrollTimer.stop();
                     }
-                    aufgabenDelegate.letzterZielIndex = targetIdx;
-                    aufgabenDelegate.verschiebeEintrag(aufgabenDelegate.index, targetIdx);
                 }
+            }
+        }
+
+        Timer {
+            id: autoScrollTimer
+            interval: 16
+            repeat: true
+            running: false
+            onTriggered: {
+                const listView = aufgabenDelegate.ListView.view;
+                if (!dragMausflaeche.pressed || !listView) {
+                    stop();
+                    aufgabenDelegate.autoScrollGeschwindigkeit = 0;
+                    return;
+                }
+
+                if (Math.abs(aufgabenDelegate.autoScrollGeschwindigkeit) < 0.01) {
+                    stop();
+                    return;
+                }
+
+                const maxContentY = Math.max(0, listView.contentHeight - listView.height);
+                const neuerY = Math.max(0, Math.min(maxContentY, listView.contentY + aufgabenDelegate.autoScrollGeschwindigkeit));
+                if (Math.abs(neuerY - listView.contentY) < 0.01) {
+                    return;
+                }
+
+                listView.contentY = neuerY;
+                aufgabenDelegate._aktualisiereDragZiel(listView, listView.contentY + aufgabenDelegate.dragAktuelleYInList);
             }
         }
 

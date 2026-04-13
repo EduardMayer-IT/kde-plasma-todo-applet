@@ -22,13 +22,15 @@ Item {
     property bool _syncNachPasswortLaden: false
     property var geloeschteUids: []
     property var _reportFallbackCallback: null
+    property var _propfindFallbackState: null
+    property string _aktiveCaldavUrl: ""
 
     property string statusNachricht: ""
     property bool hatFehler: false
 
     readonly property bool hatSichereKonfiguration:
         _hatSichereServerUrl() &&
-        _normalisiereKalenderPfad(kalenderPfad).length > 0 &&
+        _hatGueltigeKalenderKonfiguration() &&
         benutzername.trim().length > 0
 
     readonly property bool kannSynchronisieren:
@@ -48,10 +50,14 @@ Item {
     }
 
     onBenutzernameChanged: {
+        _aktiveCaldavUrl = "";
         if (benutzername.trim().length > 0) {
             ladePasswort();
         }
     }
+
+    onNextcloudUrlChanged: _aktiveCaldavUrl = "";
+    onKalenderPfadChanged: _aktiveCaldavUrl = "";
 
     function ladePasswort() {
         if (!benutzername.trim()) {
@@ -142,7 +148,7 @@ Item {
             root.statusNachricht = "Synchronisiere in beide Richtungen...";
             _loescheServerAufgaben(0, _eindeutigeUids(geloeschteUids), function(verbleibendeTombstones) {
                 root.geloeschteUidsAktualisiert(verbleibendeTombstones);
-                _syncLokaleAufgabe(0, vereinigung.aufgaben, vereinigung.konfliktUids);
+                _syncLokaleAufgabe(0, vereinigung.pushAufgaben, vereinigung.konfliktUids);
             });
         });
     }
@@ -178,8 +184,8 @@ Item {
                 return;
             }
 
-            // Fallback: Manche QML-XMLHttpRequest-Backends unterstützen DELETE nicht.
-            if (result.status === 0) {
+            // Fallback: Manche QML-XMLHttpRequest-Backends/Proxies unterstützen DELETE nicht stabil.
+            if (result.status === 0 || result.status === 405 || result.status === 501) {
                 _request("POST", url, "", {
                     "X-HTTP-Method-Override": "DELETE"
                 }, function(fallbackResult) {
@@ -213,7 +219,7 @@ Item {
         if (!_hatSichereServerUrl()) {
             return { gueltig: false, nachricht: "Nur HTTPS-URLs sind erlaubt" };
         }
-        if (_normalisiereKalenderPfad(kalenderPfad).length === 0) {
+        if (!_hatGueltigeKalenderKonfiguration()) {
             return { gueltig: false, nachricht: "Kalenderpfad ist ungueltig" };
         }
         if (!passwortGeladen || !_passwort) {
@@ -223,12 +229,22 @@ Item {
     }
 
     function _hatSichereServerUrl() {
-        const url = String(nextcloudUrl || "").trim();
+        const url = String(nextcloudUrl || kalenderPfad || "").trim();
         return /^https:\/\/.+/i.test(url);
     }
 
+    function _hatGueltigeKalenderKonfiguration() {
+        return _normalisiereKalenderPfad(kalenderPfad).length > 0
+            || _istHttpsUrl(kalenderPfad)
+            || _istHttpsUrl(nextcloudUrl);
+    }
+
+    function _istHttpsUrl(text) {
+        return /^https:\/\/.+/i.test(String(text || "").trim());
+    }
+
     function _baseUrl() {
-        const url = String(nextcloudUrl || "").trim();
+        const url = String(nextcloudUrl || kalenderPfad || "").trim();
         try {
             // Extrahiert nur Protocol + Host aus beliebiger URL
             // Z.B.: "https://cloud.zakyx.de/apps/tasks/..." → "https://cloud.zakyx.de"
@@ -240,6 +256,10 @@ Item {
     }
 
     function _normalisiereKalenderPfad(pfad) {
+        if (_istHttpsUrl(pfad)) {
+            return "";
+        }
+
         const teile = String(pfad || "")
             .split("/")
             .map(function(segment) { return segment.trim(); })
@@ -257,10 +277,108 @@ Item {
     }
 
     function _caldavUrl() {
-        return _baseUrl()
-            + "/remote.php/dav/calendars/"
+        if (String(_aktiveCaldavUrl || "").length > 0) {
+            return _aktiveCaldavUrl;
+        }
+
+        const direkteKalenderUrl = _direkteKalenderUrlAusWert(kalenderPfad);
+        if (direkteKalenderUrl) {
+            return direkteKalenderUrl;
+        }
+
+        return _standardCaldavUrl();
+    }
+
+    function _standardCaldavUrl() {
+        const davRoot = _davRootUrlAusWert(nextcloudUrl) || _davRootUrlAusWert(kalenderPfad);
+        const basis = davRoot ? davRoot.replace(/\/+$/, "") : (_baseUrl() + "/remote.php/dav");
+        const normalisiert = _normalisiereKalenderPfad(kalenderPfad);
+
+        if (normalisiert.length === 0) {
+            return basis + "/calendars/" + encodeURIComponent(benutzername.trim()) + "/";
+        }
+
+        return basis
+            + "/calendars/"
             + encodeURIComponent(benutzername.trim())
-            + "/" + _normalisiereKalenderPfad(kalenderPfad) + "/";
+            + "/" + normalisiert + "/";
+    }
+
+    function _davRootUrlAusWert(wert) {
+        const raw = String(wert || "").trim();
+        if (!_istHttpsUrl(raw)) {
+            return "";
+        }
+
+        const match = raw.match(/^(https:\/\/[^\s]+\/remote\.php\/dav)(?:[\/?#].*)?$/i);
+        if (!match || !match[1]) {
+            return "";
+        }
+
+        return match[1].replace(/\/+$/, "") + "/";
+    }
+
+    function _direkteKalenderUrlAusWert(wert) {
+        const raw = String(wert || "").trim();
+        if (!_istHttpsUrl(raw)) {
+            return "";
+        }
+
+        const match = raw.match(/^(https:\/\/[^\s]+\/remote\.php\/dav\/calendars\/[^\s?#]+)(?:[?#].*)?$/i);
+        if (!match || !match[1]) {
+            return "";
+        }
+
+        return match[1].replace(/\/+$/, "") + "/";
+    }
+
+    function _direkteCaldavUrlAusNextcloudUrl() {
+        return _direkteKalenderUrlAusWert(nextcloudUrl);
+    }
+
+    function _direkteCaldavUrlAusKalenderPfad() {
+        return _direkteKalenderUrlAusWert(kalenderPfad);
+    }
+
+    function _kalenderSammlungsUrl() {
+        const direkteKalenderUrl = _direkteKalenderUrlAusWert(kalenderPfad) || _direkteKalenderUrlAusWert(nextcloudUrl);
+        if (direkteKalenderUrl) {
+            const m = direkteKalenderUrl.match(/^(https:\/\/[^\s]+\/remote\.php\/dav\/calendars\/[^\/]+\/)/i);
+            if (m && m[1]) {
+                return m[1].replace(/\/+$/, "") + "/";
+            }
+        }
+
+        const davRoot = _davRootUrlAusWert(kalenderPfad) || _davRootUrlAusWert(nextcloudUrl);
+        if (davRoot) {
+            return davRoot.replace(/\/+$/, "") + "/calendars/" + encodeURIComponent(benutzername.trim()) + "/";
+        }
+
+        return _baseUrl() + "/remote.php/dav/calendars/" + encodeURIComponent(benutzername.trim()) + "/";
+    }
+
+    function _caldavUrlKandidaten() {
+        const seen = {};
+        const out = [];
+
+        function add(url) {
+            const u = String(url || "").trim();
+            if (!u) {
+                return;
+            }
+            const key = u.replace(/\/+$/, "") + "/";
+            if (seen[key]) {
+                return;
+            }
+            seen[key] = true;
+            out.push(key);
+        }
+
+        add(_aktiveCaldavUrl);
+        add(_direkteCaldavUrlAusKalenderPfad());
+        add(_standardCaldavUrl());
+        add(_direkteCaldavUrlAusNextcloudUrl());
+        return out;
     }
 
     function _sq(text) {
@@ -513,6 +631,182 @@ Item {
         return aufgaben;
     }
 
+    function _parsiereKalenderHrefs(xmlText, sammlungsUrl) {
+        const hrefs = [];
+        const vtodoHrefs = [];
+        const seen = {};
+        const respRegex = /<[^:>\s]*:?response[^>]*>([\s\S]*?)<\/[^:>\s]*:?response>/g;
+        const parentUrl = String(sammlungsUrl || "").replace(/\/+$/, "") + "/";
+        let match;
+
+        while ((match = respRegex.exec(xmlText)) !== null) {
+            const block = match[1];
+            const hrefM = block.match(/<[^:>\s]*:?href[^>]*>\s*(.*?)\s*<\/[^:>\s]*:?href>/);
+            if (!hrefM || !hrefM[1]) {
+                continue;
+            }
+
+            const blockLower = block.toLowerCase();
+            if (blockLower.indexOf("calendar") === -1) {
+                continue;
+            }
+
+            const hrefRaw = _xmlEntityDekodieren(hrefM[1].trim());
+            let url = "";
+            if (/^https?:\/\//i.test(hrefRaw)) {
+                url = hrefRaw;
+            } else if (hrefRaw.startsWith("/")) {
+                url = _baseUrl() + hrefRaw;
+            }
+
+            url = String(url || "").replace(/\/+$/, "") + "/";
+            if (!/^https:\/\//i.test(url)) {
+                continue;
+            }
+            if (url === parentUrl) {
+                continue;
+            }
+            if (parentUrl !== "/" && url.indexOf(parentUrl) !== 0) {
+                continue;
+            }
+            if (seen[url]) {
+                continue;
+            }
+            seen[url] = true;
+            hrefs.push(url);
+
+            const comps = block.match(/name="VTODO"/i);
+            if (comps) {
+                vtodoHrefs.push(url);
+            }
+        }
+
+        const out = vtodoHrefs.length > 0 ? vtodoHrefs : hrefs;
+        out.sort(function(a, b) {
+            return b.length - a.length;
+        });
+        return out;
+    }
+
+    function _entdeckeKalenderUndLadeServerStandMitCurl(reportXml, callback, letzterStatus, rootUrl) {
+        const discoveryUrl = String(rootUrl || _kalenderSammlungsUrl()).trim();
+        _propfindFallbackState = {
+            reportXml: reportXml,
+            callback: callback,
+            letzterStatus: letzterStatus || 404,
+            rootUrl: discoveryUrl
+        };
+
+        const body =
+            '<d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">'
+            + '<d:prop><d:resourcetype/><d:displayname/></d:prop>'
+            + '</d:propfind>';
+
+        const script =
+            "NC_USER=" + _sq(benutzername.trim()) + "; "
+            + "PW=$(secret-tool lookup service nextcloud-todo-kde username \"$NC_USER\" 2>/dev/null); "
+            + "if [ -z \"$PW\" ]; then echo __STATUS__:000; exit 0; fi; "
+            + "AUTH=$(printf '%s' \"$NC_USER:$PW\" | base64 -w0); "
+            + "curl -sS --request PROPFIND " + _sq(discoveryUrl) + " "
+            + "-H \"Authorization: Basic $AUTH\" "
+            + "-H \"Accept: application/xml, text/xml, */*\" "
+            + "-H \"Content-Type: application/xml; charset=utf-8\" "
+            + "-H \"Depth: 1\" "
+            + "--data " + _sq(body) + " "
+            + "-w '\n__STATUS__:%{http_code}'";
+
+        propfindFallbackEngine.connectSource("sh -c " + _sq(script));
+    }
+
+    function _reportAufKandidaten(reportXml, kandidaten, callback, nachFehlschlag) {
+        function versuch(index, letzterStatus) {
+            if (index >= kandidaten.length) {
+                if (nachFehlschlag) {
+                    nachFehlschlag(letzterStatus || 404);
+                    return;
+                }
+                _fehlschlag("Sync fehlgeschlagen (REPORT " + (letzterStatus || 404) + ")");
+                return;
+            }
+
+            const zielUrl = kandidaten[index];
+
+            _request("REPORT", zielUrl, reportXml, {
+                "Content-Type": "application/xml; charset=utf-8",
+                "Depth": "1"
+            }, function(result) {
+                if (result.status === 0 && index === 0) {
+                    _ladeServerStandMitCurl(reportXml, callback, zielUrl);
+                    return;
+                }
+
+                if (result.status >= 200 && result.status <= 299) {
+                    _aktiveCaldavUrl = zielUrl;
+                    callback(_parsiereMultistatus(result.text));
+                    return;
+                }
+
+                if (result.status === 404 || result.status === 301 || result.status === 302 || result.status === 307 || result.status === 308) {
+                    versuch(index + 1, result.status);
+                    return;
+                }
+
+                _fehlschlag("Sync fehlgeschlagen (REPORT " + result.status + ")");
+            });
+        }
+
+        versuch(0, 0);
+    }
+
+    function _entdeckeKalenderUndLadeServerStand(reportXml, callback, letzterStatus) {
+        const rootUrl = _kalenderSammlungsUrl();
+
+        const body =
+            '<d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">'
+            + '<d:prop><d:resourcetype/><d:displayname/></d:prop>'
+            + '</d:propfind>';
+
+        _request("PROPFIND", rootUrl, body, {
+            "Content-Type": "application/xml; charset=utf-8",
+            "Depth": "1"
+        }, function(result) {
+            if (result.status === 0) {
+                _entdeckeKalenderUndLadeServerStandMitCurl(reportXml, callback, letzterStatus, rootUrl);
+                return;
+            }
+
+            if (result.status >= 200 && result.status <= 299) {
+                const discovered = _parsiereKalenderHrefs(result.text, rootUrl);
+                if (discovered.length === 0) {
+                    _fehlschlag("Sync fehlgeschlagen (REPORT " + (letzterStatus || 404) + ")");
+                    return;
+                }
+
+                _reportAufKandidaten(reportXml, discovered, callback, function(status) {
+                    _fehlschlag("Sync fehlgeschlagen (REPORT " + (status || letzterStatus || 404) + ")");
+                });
+                return;
+            }
+
+            _fehlschlag("Sync fehlgeschlagen (REPORT " + (letzterStatus || result.status || 404) + ")");
+        });
+    }
+
+    function _normalisiereAufgabeFuerVergleich(a) {
+        return {
+            beschreibung: String((a && a.beschreibung) || ""),
+            prioritaet: parseInt((a && a.prioritaet) || 0),
+            faelligkeit: String((a && a.faelligkeit) || ""),
+            erledigt: !!(a && a.erledigt),
+            untereintraege: _kloneUntereintraege(a && a.untereintraege ? a.untereintraege : [])
+        };
+    }
+
+    function _aufgabenInhaltlichGleich(a, b) {
+        return JSON.stringify(_normalisiereAufgabeFuerVergleich(a))
+            === JSON.stringify(_normalisiereAufgabeFuerVergleich(b));
+    }
+
     function _request(method, url, body, extraHeaders, callback) {
         // qmllint disable unqualified
         const request = new XMLHttpRequest();
@@ -527,13 +821,6 @@ Item {
             for (let i = 0; i < headerNamen.length; i++) {
                 headers[headerNamen[i]] = extraHeaders[headerNamen[i]];
             }
-        }
-
-        // Für DELETE nutzen wir bei Bedarf POST mit Method-Override als Fallback.
-        // REPORT soll direkt laufen (Nextcloud CalDAV erwartet echtes REPORT).
-        if (gewuenschteMethode === "DELETE") {
-            effektiveMethode = "POST";
-            headers["X-HTTP-Method-Override"] = gewuenschteMethode;
         }
 
         try {
@@ -610,6 +897,32 @@ Item {
                 return;
             }
 
+            // Einige Server liefern bei veralteten HREFs 404.
+            // Dann einmal über die kanonische UID-URL neu anlegen/aktualisieren.
+            if (result.status === 404 && aufgabe.caldavHref) {
+                const fallbackUrl = _caldavUrl() + encodeURIComponent(aufgabe.uid) + ".ics";
+                const fallbackHeaders = {
+                    "Content-Type": "text/calendar; charset=utf-8",
+                    "If-None-Match": "*"
+                };
+
+                _request("PUT", fallbackUrl, _aufgabeZuVtodo(aufgabe), fallbackHeaders, function(fallbackResult) {
+                    if (fallbackResult.status === 200 || fallbackResult.status === 201 || fallbackResult.status === 204) {
+                        _syncLokaleAufgabe(index + 1, lokal, konfliktUids);
+                        return;
+                    }
+
+                    if (fallbackResult.status === 412) {
+                        konfliktUids.push(aufgabe.uid);
+                        _syncLokaleAufgabe(index + 1, lokal, konfliktUids);
+                        return;
+                    }
+
+                    _fehlschlag("Sync fehlgeschlagen (PUT " + fallbackResult.status + ")");
+                });
+                return;
+            }
+
             if (result.status === 412) {
                 konfliktUids.push(aufgabe.uid);
                 _syncLokaleAufgabe(index + 1, lokal, konfliktUids);
@@ -627,34 +940,23 @@ Item {
             + '<c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VTODO"/></c:comp-filter></c:filter>'
             + '</c:calendar-query>';
 
-        _request("REPORT", _caldavUrl(), reportXml, {
-            "Content-Type": "application/xml; charset=utf-8",
-            "Depth": "1"
-        }, function(result) {
-            // Fallback fuer Umgebungen, in denen QML/XHR REPORT nicht unterstützt.
-            if (result.status === 0) {
-                _ladeServerStandMitCurl(reportXml, callback);
-                return;
-            }
-
-            if (result.status < 200 || result.status > 299) {
-                _fehlschlag("Sync fehlgeschlagen (REPORT " + result.status + ")");
-                return;
-            }
-
-            callback(_parsiereMultistatus(result.text));
+        const kandidaten = _caldavUrlKandidaten();
+        _reportAufKandidaten(reportXml, kandidaten, callback, function(letzterStatus) {
+            _entdeckeKalenderUndLadeServerStand(reportXml, callback, letzterStatus);
         });
     }
 
-    function _ladeServerStandMitCurl(reportXml, callback) {
+    function _ladeServerStandMitCurl(reportXml, callback, zielUrl) {
         _reportFallbackCallback = callback;
+
+        const reportUrl = String(zielUrl || _caldavUrl()).trim();
 
         const script =
             "NC_USER=" + _sq(benutzername.trim()) + "; "
             + "PW=$(secret-tool lookup service nextcloud-todo-kde username \"$NC_USER\" 2>/dev/null); "
             + "if [ -z \"$PW\" ]; then echo __STATUS__:000; exit 0; fi; "
             + "AUTH=$(printf '%s' \"$NC_USER:$PW\" | base64 -w0); "
-            + "curl -sS --request REPORT " + _sq(_caldavUrl()) + " "
+            + "curl -sS --request REPORT " + _sq(reportUrl) + " "
             + "-H \"Authorization: Basic $AUTH\" "
             + "-H \"Accept: text/calendar, application/xml, text/xml, */*\" "
             + "-H \"Content-Type: application/xml; charset=utf-8\" "
@@ -683,6 +985,7 @@ Item {
         const serverNachUid = {};
         const merged = [];
         const konfliktUids = [];
+        const pushAufgaben = [];
         const geloeschteSet = {};
 
         for (let i = 0; i < (Array.isArray(geloeschteUids) ? geloeschteUids.length : 0); i++) {
@@ -711,6 +1014,7 @@ Item {
             const s = serverNachUid[l.uid];
             if (!s) {
                 merged.push(l);
+                pushAufgaben.push(l);
                 continue;
             }
 
@@ -720,7 +1024,8 @@ Item {
                 merged.push(s);
                 konfliktUids.push(l.uid);
             } else {
-                merged.push({
+                const lokalGewinnt = !_aufgabenInhaltlichGleich(l, s);
+                const kandidat = lokalGewinnt ? {
                     beschreibung: l.beschreibung,
                     prioritaet: l.prioritaet,
                     faelligkeit: l.faelligkeit,
@@ -729,7 +1034,12 @@ Item {
                     uid: l.uid,
                     etag: l.etag || s.etag || "",
                     caldavHref: l.caldavHref || s.caldavHref || ""
-                });
+                } : s;
+
+                merged.push(kandidat);
+                if (lokalGewinnt) {
+                    pushAufgaben.push(kandidat);
+                }
             }
 
             delete serverNachUid[l.uid];
@@ -742,6 +1052,7 @@ Item {
 
         return {
             aufgaben: merged,
+            pushAufgaben: pushAufgaben,
             konfliktUids: konfliktUids
         };
     }
@@ -852,6 +1163,42 @@ Item {
             }
 
             _fehlschlag("Sync fehlgeschlagen (REPORT " + status + ")");
+        }
+    }
+
+    P5Support.DataSource {
+        id: propfindFallbackEngine
+        engine: "executable"
+
+        onNewData: function(src, data) {
+            disconnectSource(src);
+            removeSource(src);
+
+            const state = root._propfindFallbackState;
+            root._propfindFallbackState = null;
+            if (!state) {
+                return;
+            }
+
+            const stdout = String(data["stdout"] || "");
+            const match = stdout.match(/__STATUS__:(\d{3})\s*$/);
+            const status = match ? parseInt(match[1]) : 0;
+            const body = match ? stdout.replace(/\n?__STATUS__:\d{3}\s*$/, "") : stdout;
+
+            if (status >= 200 && status <= 299) {
+                const discovered = _parsiereKalenderHrefs(body, state.rootUrl);
+                if (discovered.length === 0) {
+                    _fehlschlag("Sync fehlgeschlagen (REPORT " + (state.letzterStatus || 404) + ")");
+                    return;
+                }
+
+                _reportAufKandidaten(state.reportXml, discovered, state.callback, function(reportStatus) {
+                    _fehlschlag("Sync fehlgeschlagen (REPORT " + (reportStatus || state.letzterStatus || 404) + ")");
+                });
+                return;
+            }
+
+            _fehlschlag("Sync fehlgeschlagen (REPORT " + (state.letzterStatus || status || 404) + ")");
         }
     }
 }
